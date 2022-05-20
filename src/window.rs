@@ -3,7 +3,7 @@ use system_sdl::SDLSystem;
 use crate::platform::system_sdl;
 use crate::platform::graphics_device::GraphicsDevice;
 
-use std::time::Instant;
+use std::time::{Instant, Duration};
 
 pub fn run(window_title: &str, width: u32, height: u32, game: impl Game) -> Result<(), String>
 {
@@ -15,23 +15,25 @@ pub fn run(window_title: &str, width: u32, height: u32, game: impl Game) -> Resu
 
     let mut is_running = true;
 
-    let mut old_time: f64 = 0.0;
-    let mut accumulator: f64 = 0.0; 
+    let mut old_time = Duration::new(0, 0);
+    let mut accumulator = Duration::new(0, 0); 
 
     let timer = Instant::now();
 
+    let frame_time_cap = Duration::from_secs_f64(1.0 / 60.0);
+
     while is_running
     {
-        let frame_time = timer.elapsed().as_secs_f64() - old_time;
-        old_time = timer.elapsed().as_secs_f64();
+        let frame_time = timer.elapsed() - old_time;
+        old_time = timer.elapsed();
         accumulator += frame_time;
 
         game.process_input();
 
-        while accumulator > 1.0 / 60.0 
+        while accumulator > frame_time_cap 
         {
             game.update();
-            accumulator -= 1.0 / 60.0;
+            accumulator -= frame_time_cap;
         }
         game.draw(&graphics_device);
 
