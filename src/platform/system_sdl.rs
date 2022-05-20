@@ -12,9 +12,6 @@ impl SDLSystem
     pub fn new(window_title: &str, width: u32, height: u32) -> Self
     {
         let sdl_context = sdl2::init().unwrap();
-        let time = sdl_context.timer().unwrap();
-
-        let ticks = time.ticks();
 
         let video_subsystem = sdl_context.video().unwrap();
 
