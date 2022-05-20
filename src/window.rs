@@ -7,20 +7,17 @@ use std::time::{Instant, Duration};
 
 pub fn run(window_title: &str, width: u32, height: u32, game: impl Game) -> Result<(), String>
 {
-    // Show logs from wgpu
-    // env_logger::init();
-
     let sdl2_system = SDLSystem::new(window_title, width, height);
     let graphics_device = GraphicsDevice::new(&sdl2_system).unwrap();
 
     let mut is_running = true;
 
-    let mut old_time = Duration::new(0, 0);
-    let mut accumulator = Duration::new(0, 0); 
+    let zero_duration = Duration::new(0, 0);
 
     let timer = Instant::now();
-
-    let frame_time_cap = Duration::from_secs_f64(1.0 / 60.0);
+    let mut old_time = zero_duration;
+    let mut accumulator = zero_duration; 
+    let frame_time_cap = Duration::new(0 , 16666666);
 
     while is_running
     {
@@ -33,7 +30,7 @@ pub fn run(window_title: &str, width: u32, height: u32, game: impl Game) -> Resu
         while accumulator > frame_time_cap 
         {
             game.update();
-            accumulator -= frame_time_cap;
+            accumulator = zero_duration;
         }
         game.draw(&graphics_device);
 
