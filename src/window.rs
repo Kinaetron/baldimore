@@ -9,8 +9,7 @@ pub fn run(window_title: &str, width: u32, height: u32, game: impl Game) -> Resu
 
     let mut loop_helper = LoopHelper::builder()
         .report_interval_s(0.5) // report every half a second
-        .build_with_target_rate(60.0);
-
+        .build_with_target_rate(60.5);
 
     let sdl2_system = SDLSystem::new(window_title, width, height);
     let graphics_device = GraphicsDevice::new(&sdl2_system).unwrap();
