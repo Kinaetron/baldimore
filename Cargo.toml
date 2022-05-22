@@ -10,6 +10,7 @@ wgpu = "0.12.0"
 pollster = "0.2"
 cgmath = "0.18.0"
 spin_sleep = "1.1.1"
+bytemuck = { version = "1.9.1", features = [ "derive" ] }
 [dependencies.sdl2]
 features = ["bundled", "raw-window-handle"]
 version = "0.35.2"
