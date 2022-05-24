@@ -1,4 +1,4 @@
-use crate::platform::graphics_device::GraphicsDevice;
+use crate::graphics::spritebatch::SpriteBatch;
 
 
 pub trait Game
@@ -9,6 +9,7 @@ pub trait Game
     fn update(&self) {
     }
 
-    fn draw(&self, graphics_device: &GraphicsDevice) {
+    fn draw(&self, sprite_batch: &mut SpriteBatch) 
+    {
     }
 }
