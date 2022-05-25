@@ -7,7 +7,8 @@ pub struct SpriteBatch
     texture_vec: Vec<Texture>,
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
-    graphics_device: GraphicsDevice,
+    texture_indices: Vec<u32>,
+    graphics_device: GraphicsDevice
 }
 
 impl SpriteBatch
@@ -17,8 +18,9 @@ impl SpriteBatch
         let vertices: Vec<Vertex> = Vec::new();
         let indices: Vec<u32> =Vec::new();
         let texture_vec: Vec<Texture> = Vec::new();
+        let texture_indices: Vec<u32> = Vec::new();
 
-        Self { sprite_count: 0, batch_began: false, texture_vec, vertices, indices, graphics_device }
+        Self { sprite_count: 0, batch_began: false, texture_vec, vertices, indices, texture_indices, graphics_device }
     }
 
     pub fn begin(&mut self) {
@@ -54,6 +56,8 @@ impl SpriteBatch
         self.indices.push(indice_index + 3);
 
         self.texture_vec.push(texture);
+        self.texture_indices.push(self.sprite_count);
+
         self.sprite_count += 1;
     }
 
@@ -63,7 +67,7 @@ impl SpriteBatch
             panic!("You can't call end if without calling begin first");
         }
 
-
+        self.graphics_device.batch_render(self.texture_indices.clone(), self.indices.clone(), self.vertices.clone(), self.texture_vec.clone());
 
         self.batch_began = false;
     }

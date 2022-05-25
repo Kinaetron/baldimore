@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use image::{GenericImageView, EncodableLayout};
 
+#[derive(Clone)]
 pub struct Texture
 {
     pub width: u32,
