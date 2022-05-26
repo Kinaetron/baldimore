@@ -220,11 +220,13 @@ impl GraphicsDevice
     }
 
     pub fn batch_render(&self, batch_information_vec: Vec<BatchInformation>)
-    {   
+    { 
+        let output = self.surface.get_current_texture().unwrap();
+
         for batch_information in batch_information_vec
         {
             let wgpu_texture =
-                WGPUTexture::from_bytes(&self.device, &self.queue, &batch_information.texture.data, "batch texture");
+            WGPUTexture::from_bytes(&self.device, &self.queue, &batch_information.texture.data, "batch texture");
 
             let texture_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 layout: &self.texture_bind_group_layout,
@@ -253,7 +255,6 @@ impl GraphicsDevice
                 usage: wgpu::BufferUsages::INDEX,
             });
 
-            let output = self.surface.get_current_texture().unwrap();
             let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
             let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -273,7 +274,7 @@ impl GraphicsDevice
                     }],
                     depth_stencil_attachment: None,
                 });
-    
+
                 render_pass.set_pipeline(&self.render_pipeline);
                 render_pass.set_bind_group(0, &texture_bind_group, &[]);
                 render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
@@ -282,8 +283,9 @@ impl GraphicsDevice
                 render_pass.draw_indexed(0..batch_information.indices.len() as u32, 0, 0..1);
             }
             
-            self.queue.submit(iter::once(encoder.finish()));
-            output.present();
+            self.queue.submit(iter::once(encoder.finish()));  
         }
+
+        output.present(); 
     }
 }
