@@ -2,25 +2,34 @@ use crate::{math::Vector2, platform::graphics_device::GraphicsDevice, platform::
 
 pub struct SpriteBatch
 {
-    sprite_count: u32,
     batch_began: bool,
-    texture_vec: Vec<Texture>,
-    vertices: Vec<Vertex>,
-    indices: Vec<u32>,
-    texture_indices: Vec<u32>,
-    graphics_device: GraphicsDevice
+    graphics_device: GraphicsDevice,
+    batch_information_vec: Vec<BatchInformation>
+}
+
+
+#[derive(Clone)]
+pub struct BatchInformation
+{
+    pub texture: Texture,
+    pub indices: Vec<u16>,
+    pub vertices: Vec<Vertex>,
+}
+
+impl BatchInformation
+{
+    pub fn new(texture: Texture, vertices: Vec<Vertex>, indices: Vec<u16>) -> Self {
+        Self { texture, indices, vertices }
+    }
 }
 
 impl SpriteBatch
 {
-    pub fn new(graphics_device: GraphicsDevice) -> Self
+    pub fn new(graphics_device: GraphicsDevice) -> Self 
     {
-        let vertices: Vec<Vertex> = Vec::new();
-        let indices: Vec<u32> =Vec::new();
-        let texture_vec: Vec<Texture> = Vec::new();
-        let texture_indices: Vec<u32> = Vec::new();
+        let batch_information_vec: Vec<BatchInformation> = Vec::new();
 
-        Self { sprite_count: 0, batch_began: false, texture_vec, vertices, indices, texture_indices, graphics_device }
+        Self { batch_began: false, graphics_device, batch_information_vec }
     }
 
     pub fn begin(&mut self) {
@@ -41,24 +50,29 @@ impl SpriteBatch
 
         let origin_x = (texture.width / 2) as f32;
         let origin_y = (texture.height / 2) as f32;
+
+        let mut vertices: Vec<Vertex>  = Vec::new();
+        let mut indices: Vec<u16> = Vec::new();
         
-        self.vertices.push( Vertex { position: [ position.x - origin_x, position.y + origin_y], tex_coords: [0.0, 0.0], texture_index: self.sprite_count });
-        self.vertices.push( Vertex { position: [ position.x - origin_x, position.y - origin_y], tex_coords: [0.0, 1.0], texture_index: self.sprite_count });
-        self.vertices.push( Vertex { position: [ position.x + origin_x, position.y - origin_y], tex_coords: [1.0, 1.0], texture_index: self.sprite_count });
-        self.vertices.push( Vertex { position: [ position.x + origin_x, position.y + origin_y], tex_coords: [1.0, 0.0], texture_index: self.sprite_count });
+        println!("Vertex 1: {} {}", position.x - origin_x,  position.y + origin_y);
+        println!("Vertex 2: {} {}", position.x - origin_x,  position.y - origin_y);
+        println!("Vertex 3: {} {}", position.x + origin_x,  position.y - origin_y);
+        println!("Vertex 4: {} {}", position.x + origin_x,  position.y + origin_y);
 
-        let indice_index = self.sprite_count;
-        self.indices.push(indice_index);
-        self.indices.push(indice_index + 1);
-        self.indices.push(indice_index + 3);
-        self.indices.push(indice_index + 1);
-        self.indices.push(indice_index + 2);
-        self.indices.push(indice_index + 3);
+        vertices.push(Vertex { position: [ position.x - origin_x, position.y + origin_y], tex_coords: [0.0, 0.0] });
+        vertices.push(Vertex { position: [ position.x - origin_x, position.y - origin_y], tex_coords: [0.0, 1.0] });
+        vertices.push(Vertex { position: [ position.x + origin_x, position.y - origin_y], tex_coords: [1.0, 1.0] });
+        vertices.push(Vertex { position: [ position.x + origin_x, position.y + origin_y], tex_coords: [1.0, 0.0] });
 
-        self.texture_vec.push(texture);
-        self.texture_indices.push(self.sprite_count);
+        indices.push(0);
+        indices.push(1);
+        indices.push(3);
+        indices.push(1);
+        indices.push(2);
+        indices.push(3);
 
-        self.sprite_count += 1;
+        let batch_information = BatchInformation::new(texture, vertices, indices);
+        self.batch_information_vec.push(batch_information);
     }
 
     pub fn end(&mut self)
@@ -67,8 +81,7 @@ impl SpriteBatch
             panic!("You can't call end if without calling begin first");
         }
 
-        self.graphics_device.batch_render(self.texture_indices.clone(), self.indices.clone(), self.vertices.clone(), self.texture_vec.clone());
-
+        self.graphics_device.batch_render(self.batch_information_vec.clone());
         self.batch_began = false;
     }
 }

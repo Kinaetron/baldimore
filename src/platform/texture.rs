@@ -1,13 +1,13 @@
 use std::num::NonZeroU32;
 use image::GenericImageView;
 
-pub struct Texture {
+pub struct WGPUTexture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
 
-impl Texture {
+impl WGPUTexture {
     pub fn from_bytes(device: &wgpu::Device, queue: &wgpu::Queue, bytes: &[u8], label: &str) -> Self {
         let img = image::load_from_memory(bytes).unwrap();
         Self::from_image(device, queue, &img, Some(label))
