@@ -3,7 +3,7 @@ use crate::{math::Vector2, platform::graphics_device::GraphicsDevice, platform::
 pub struct SpriteBatch
 {
     batch_began: bool,
-    graphics_device: GraphicsDevice,
+    pub graphics_device: GraphicsDevice,
     batch_information_vec: Vec<BatchInformation>
 }
 

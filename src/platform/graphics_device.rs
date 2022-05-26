@@ -54,9 +54,9 @@ pub struct GraphicsDevice
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    clear_color: wgpu::Color,
     camera_bind_group: wgpu::BindGroup,
-    render_pipeline: wgpu::RenderPipeline
+    render_pipeline: wgpu::RenderPipeline,
+    clear_color: wgpu::Color
 }
 
 impl GraphicsDevice
@@ -209,14 +209,14 @@ impl GraphicsDevice
         },
         multiview: None,
     });
-            
-        let clear_color = wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 0.0 };
 
-        Ok(Self{ surface, device, queue, config, clear_color, texture_bind_group_layout, camera_bind_group, render_pipeline })
+        let clear_color = wgpu::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+        
+        Ok(Self{ surface, device, queue, config, texture_bind_group_layout, camera_bind_group, render_pipeline, clear_color })
     }
 
-    pub fn clear(&mut self, red : f64, green: f64, blue: f64, alpha: f64)  {
-        self.clear_color = wgpu::Color{ r: red, g: green, b: blue, a: alpha };
+    pub fn clear(&mut self, red : f64, green: f64, blue: f64, alpha: f64) {
+        self.clear_color = wgpu::Color { r: red, g: green, b: blue, a: alpha };
     }
 
     pub fn batch_render(&self, batch_information_vec: Vec<BatchInformation>)
@@ -226,6 +226,19 @@ impl GraphicsDevice
 
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
+        });
+
+        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(self.clear_color),
+                    store: true,
+                },
+            }],
+            depth_stencil_attachment: None,
         });
 
         for batch_information in batch_information_vec
