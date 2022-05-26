@@ -53,16 +53,11 @@ impl SpriteBatch
 
         let mut vertices: Vec<Vertex>  = Vec::new();
         let mut indices: Vec<u16> = Vec::new();
-        
-        println!("Vertex 1: {} {}", position.x - origin_x,  position.y + origin_y);
-        println!("Vertex 2: {} {}", position.x - origin_x,  position.y - origin_y);
-        println!("Vertex 3: {} {}", position.x + origin_x,  position.y - origin_y);
-        println!("Vertex 4: {} {}", position.x + origin_x,  position.y + origin_y);
 
-        vertices.push(Vertex { position: [ position.x - origin_x, position.y + origin_y], tex_coords: [0.0, 0.0] });
-        vertices.push(Vertex { position: [ position.x - origin_x, position.y - origin_y], tex_coords: [0.0, 1.0] });
-        vertices.push(Vertex { position: [ position.x + origin_x, position.y - origin_y], tex_coords: [1.0, 1.0] });
-        vertices.push(Vertex { position: [ position.x + origin_x, position.y + origin_y], tex_coords: [1.0, 0.0] });
+        vertices.push(Vertex { position: [ position.x - origin_x, position.y - origin_y], tex_coords: [0.0, 0.0] }); // bottom left
+        vertices.push(Vertex { position: [ position.x - origin_x, position.y + origin_y], tex_coords: [0.0, 1.0] }); // top left
+        vertices.push(Vertex { position: [ position.x + origin_x, position.y + origin_y], tex_coords: [1.0, 1.0] }); // top right
+        vertices.push(Vertex { position: [ position.x + origin_x, position.y - origin_y], tex_coords: [1.0, 0.0] }); // bottom right
 
         indices.push(0);
         indices.push(1);

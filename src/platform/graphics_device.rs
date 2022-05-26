@@ -1,9 +1,9 @@
 use std::iter;
-use crate::graphics::spritebatch::BatchInformation;
 use crate::math;
 use wgpu::util::DeviceExt;
 use crate::platform::texture::WGPUTexture;
 use crate::platform::system_sdl::SDLSystem;
+use crate::graphics::spritebatch::BatchInformation;
 
 
 #[repr(C)]
