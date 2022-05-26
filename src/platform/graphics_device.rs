@@ -222,7 +222,6 @@ impl GraphicsDevice
     pub fn batch_render(&self, batch_information_vec: Vec<BatchInformation>)
     { 
         let output = self.surface.get_current_texture().unwrap();
-
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -268,7 +267,7 @@ impl GraphicsDevice
                         view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(self.clear_color),
+                            load: wgpu::LoadOp::Load,
                             store: true,
                         },
                     }],
