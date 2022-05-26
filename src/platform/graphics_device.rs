@@ -223,6 +223,12 @@ impl GraphicsDevice
     { 
         let output = self.surface.get_current_texture().unwrap();
 
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
+
         for batch_information in batch_information_vec
         {
             let wgpu_texture =
@@ -255,12 +261,6 @@ impl GraphicsDevice
                 usage: wgpu::BufferUsages::INDEX,
             });
 
-            let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-            let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-
             {
                 let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Render Pass"),
@@ -282,10 +282,9 @@ impl GraphicsDevice
                 render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..batch_information.indices.len() as u32, 0, 0..1);
             }
-            
-            self.queue.submit(iter::once(encoder.finish()));  
         }
 
+        self.queue.submit(iter::once(encoder.finish()));  
         output.present(); 
     }
 }
