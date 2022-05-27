@@ -39,7 +39,6 @@ impl SpriteBatch
         }
 
         self.batch_began = true;
-        self.batch_information_vec.clear();
     }
 
 
@@ -71,6 +70,7 @@ impl SpriteBatch
         }
 
         self.graphics_interface.batch_render(&self.batch_information_vec);
+        self.batch_information_vec.clear();
         self.batch_began = false;
     }
 }

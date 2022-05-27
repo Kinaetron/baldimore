@@ -28,7 +28,7 @@ pub fn run(window: Window, mut game: impl Game) -> Result<(), String>
 
     let mut loop_helper = LoopHelper::builder()
         .report_interval_s(0.5)
-        .build_with_target_rate(60);
+        .build_with_target_rate(60.5);
 
 
     let mut sprite_batch = SpriteBatch::new(window.graphics_interface);
