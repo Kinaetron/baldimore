@@ -18,7 +18,6 @@ impl SDLSystem
         let window = video_subsystem
             .window(window_title, width, height)
             .position_centered()
-            .resizable()
             .build()
             .map_err(|e| e.to_string()).unwrap();
 
