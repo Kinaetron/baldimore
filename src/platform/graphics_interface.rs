@@ -1,7 +1,6 @@
 use std::iter;
 use crate::math;
 use wgpu::util::DeviceExt;
-use crate::platform::texture::WGPUTexture;
 use crate::platform::system_sdl::SDLSystem;
 use crate::graphics::spritebatch::BatchInformation;
 
@@ -47,7 +46,7 @@ impl Vertex {
     }
 }
 
-pub struct GraphicsDevice
+pub struct GraphicsInterface
 {
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,
@@ -59,7 +58,7 @@ pub struct GraphicsDevice
     clear_color: wgpu::Color
 }
 
-impl GraphicsDevice
+impl GraphicsInterface
 {
     pub fn new(sdl2_system: &SDLSystem) -> Result<Self, String>
     {
@@ -219,7 +218,7 @@ impl GraphicsDevice
         self.clear_color = wgpu::Color { r: red, g: green, b: blue, a: alpha };
     }
 
-    pub fn batch_render(&self, batch_information_vec: Vec<BatchInformation>)
+    pub fn batch_render(&self, batch_information_vec: &Vec<BatchInformation>)
     { 
         let output = self.surface.get_current_texture().unwrap();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -243,19 +242,16 @@ impl GraphicsDevice
 
         for batch_information in batch_information_vec
         {
-            let wgpu_texture =
-            WGPUTexture::from_bytes(&self.device, &self.queue, &batch_information.texture.data, "batch texture");
-
             let texture_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 layout: &self.texture_bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&wgpu_texture.view),
+                        resource: wgpu::BindingResource::TextureView(&batch_information.texture.view),
                     },
                     wgpu::BindGroupEntry {
                         binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&wgpu_texture.sampler),
+                        resource: wgpu::BindingResource::Sampler(&batch_information.texture.sampler),
                     },
                 ],
                 label: Some("texture_bind_group"),
