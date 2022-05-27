@@ -3,13 +3,13 @@ use crate::graphics::spritebatch::SpriteBatch;
 
 pub trait Game
 {
-    fn process_input(&self) {
+    fn process_input(&mut self) {
     }
 
-    fn update(&self) {
+    fn update(&mut self) {
     }
 
-    fn draw(&self, sprite_batch: &mut SpriteBatch) 
+    fn draw(&mut self, sprite_batch: &mut SpriteBatch) 
     {
     }
 }
