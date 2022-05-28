@@ -5,6 +5,7 @@ pub struct SDLSystem
 {
     sdl_context: sdl2::Sdl,
     pub window: sdl2::video::Window,
+    pub event_pump: sdl2::EventPump
 }
 
 impl SDLSystem  
@@ -12,7 +13,7 @@ impl SDLSystem
     pub fn new(window_title: &str, width: u32, height: u32) -> Self
     {
         let sdl_context = sdl2::init().unwrap();
-
+        let event_pump = sdl_context.event_pump().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
 
         let window = video_subsystem
@@ -21,20 +22,10 @@ impl SDLSystem
             .build()
             .map_err(|e| e.to_string()).unwrap();
 
-        Self {sdl_context , window }
+        Self {sdl_context , window, event_pump }
     }
 
-    pub fn keep_window_open(&self) -> bool 
-    {
-        let mut events = self.sdl_context.event_pump().unwrap();
-
-        for event in events.poll_iter()
-        {
-            if let Event::Quit { .. } = event {
-                return false;
-            };
-        }
-
-        return true;
+    pub fn next_event(&mut self) -> Option<Event> {
+        self.event_pump.poll_event()
     }
 }
