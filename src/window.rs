@@ -2,8 +2,8 @@ use crate::game::Game;
 use system_sdl::SDLSystem;
 use spin_sleep::LoopHelper;
 use crate::platform::system_sdl;
-use crate::input::keyboard::Keyboard;
 use crate::graphics::spritebatch::SpriteBatch;
+use crate::input::{keyboard::Keyboard, mouse::Mouse};
 use crate::platform::graphics_interface::GraphicsInterface;
 
 pub struct Window
@@ -35,15 +35,21 @@ pub fn run(mut window: Window, mut game: impl Game) -> Result<(), String>
     let mut sprite_batch = SpriteBatch::new(window.graphics_interface);
 
     let mut keyboard = Keyboard::new();
+    let mut mouse = Mouse::new();
 
     while keyboard.is_running
     {
         loop_helper.loop_start();
 
-        keyboard.clear();
-        keyboard.poll(&window.sdl2_system.next_event());
+        let event = &window.sdl2_system.next_event();
 
-        game.process_input(&keyboard);
+        mouse.clear();
+        mouse.poll(event);
+
+        keyboard.clear();
+        keyboard.poll(event);
+
+        game.process_input(&keyboard, &mouse);
         game.update();
         game.draw(&mut sprite_batch);
 
