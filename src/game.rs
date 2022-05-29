@@ -1,10 +1,10 @@
-use crate::input::keyboard::Keyboard;
 use crate::graphics::spritebatch::SpriteBatch;
+use crate::input::{keyboard::Keyboard, mouse::Mouse};
 
 
 pub trait Game
 {
-    fn process_input(&mut self, keyboard: & Keyboard) {
+    fn process_input(&mut self, keyboard: &Keyboard, mouse: &Mouse) {
     }
 
     fn update(&mut self) {
