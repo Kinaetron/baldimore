@@ -3,7 +3,7 @@ use system_sdl::SDLSystem;
 use spin_sleep::LoopHelper;
 use crate::platform::system_sdl;
 use crate::graphics::spritebatch::SpriteBatch;
-use crate::input::{keyboard::Keyboard, mouse::Mouse};
+use crate::input::{ gamepad::Gamepad, keyboard::Keyboard, mouse::Mouse };
 use crate::platform::graphics_interface::GraphicsInterface;
 
 pub struct Window
@@ -34,6 +34,7 @@ pub fn run(mut window: Window, mut game: impl Game) -> Result<(), String>
 
     let mut sprite_batch = SpriteBatch::new(window.graphics_interface);
 
+    let mut gamepad = Gamepad::new();
     let mut keyboard = Keyboard::new();
     let mut mouse = Mouse::new();
 
@@ -44,12 +45,14 @@ pub fn run(mut window: Window, mut game: impl Game) -> Result<(), String>
         let event = &window.sdl2_system.next_event();
 
         mouse.clear();
-        mouse.poll(event);
-
+        gamepad.clear();
         keyboard.clear();
+
+        mouse.poll(event);
+        gamepad.poll(&window.sdl2_system.game_controller_subsystem, event);
         keyboard.poll(event);
 
-        game.process_input(&keyboard, &mouse);
+        game.process_input(&gamepad, &keyboard, &mouse);
         game.update();
         game.draw(&mut sprite_batch);
 
