@@ -13,8 +13,6 @@ impl SDLSystem
     pub fn new(window_title: &str, width: u32, height: u32) -> Self
     {
         let sdl_context = sdl2::init().unwrap();
-        sdl2::hint::set("SDL_JOYSTICK_THREAD", "1");
-
         let event_pump = sdl_context.event_pump().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
         let game_controller_subsystem = sdl_context.game_controller().unwrap();

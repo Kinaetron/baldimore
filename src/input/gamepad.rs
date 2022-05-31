@@ -1,14 +1,22 @@
-use sdl2::{event::Event, controller::GameController};
+use crate::math::Vector2;
 use std::collections::HashMap;
 pub use sdl2::controller::Button as GamePadButton;
+use sdl2::{event::Event, controller::GameController, controller::Axis};
+
+
+const CONTROLLER_RANGE: f32 = 32767.0;
 
 pub struct Gamepad
 {
     controller_count: u32,
+    left_trigger: HashMap<u32, f32>,
+    right_trigger: HashMap<u32, f32>,
+    left_stick: HashMap<u32, Vector2<f32>>,
+    right_stick: HashMap<u32, Vector2<f32>>,
+    controllers: HashMap<u32, GameController>,
     buttons_down: HashMap<u32, GamePadButton>,
     buttons_pressed: HashMap<u32, GamePadButton>,
     buttons_released: HashMap<u32, GamePadButton>,
-    controllers: HashMap<u32, GameController>
 }
 
 impl Gamepad 
@@ -16,9 +24,12 @@ impl Gamepad
     pub fn new() -> Self
     {
         Self 
-        {  
-            
+        {
             controller_count: 0,
+            left_stick: HashMap::new(),
+            right_stick: HashMap::new(),
+            left_trigger: HashMap::new(),
+            right_trigger: HashMap::new(),
             buttons_down: HashMap::new(), 
             buttons_pressed: HashMap::new(), 
             buttons_released: HashMap::new(),
@@ -52,6 +63,17 @@ impl Gamepad
                     None => { self.buttons_released.insert(*which, *button); }
                 }
             }
+            Some(Event::ControllerAxisMotion { which, axis: Axis::TriggerLeft, value: val, .. }) =>
+            {
+                self.left_trigger.insert(*which, (*val as f32) / CONTROLLER_RANGE);
+            } 
+            Some(Event::ControllerAxisMotion { which, axis: Axis::TriggerRight, value: val, .. }) =>
+            {
+                self.right_trigger.insert(*which, (*val as f32) / CONTROLLER_RANGE);
+            },
+            Some(Event::ControllerAxisMotion { which, axis, value: val, .. }) =>
+            {
+            },
             _ => {}
         }
     }
@@ -91,6 +113,51 @@ impl Gamepad
         match self.buttons_released.get(&controller_index) {
             Some(match_button) => { return match_button == &button }
             None => { return false }
+        }
+    }
+
+    pub fn left_trigger(&self, controller_index: u32) -> f32
+    {
+        match self.left_trigger.get(&controller_index) {
+            Some(trigger_value ) => { return *trigger_value }
+            None => { return 0.0 }
+        }
+    }
+
+    pub fn right_trigger(&self, controller_index: u32) -> f32
+    {
+        match self.right_trigger.get(&controller_index) {
+            Some(trigger_value ) => { return *trigger_value }
+            None => { return 0.0 }
+        }
+    }
+
+    pub fn set_rumble(&mut self, force_left: f32, force_right: f32, time: u32, controller_index: u32)
+    {
+        let force_left_value = (force_left * CONTROLLER_RANGE) as u16;
+        let force_right_value = (force_right * CONTROLLER_RANGE) as u16;
+
+        match self.controllers.get_mut(&controller_index)
+        {
+            Some(controller) => { controller.set_rumble(force_left_value, force_right_value, time).unwrap(); },
+            None => todo!(),
+        }
+    }
+
+    // THIS IS AWFUL FIX IT
+    pub fn left_stick(&mut self, controller_index: u32) -> Vector2<i32>
+    {
+        match self.controllers.get_mut(&controller_index)
+        {
+            Some(controller) => 
+            {  
+                return Vector2 
+                { 
+                    x: ((controller.axis(Axis::LeftX) as i32) / CONTROLLER_RANGE as i32), 
+                    y: ((controller.axis(Axis::LeftY) as i32) / CONTROLLER_RANGE as i32)
+                }
+            },
+            None => todo!(),
         }
     }
 

@@ -52,7 +52,7 @@ pub fn run(mut window: Window, mut game: impl Game) -> Result<(), String>
         gamepad.poll(&window.sdl2_system.game_controller_subsystem, event);
         keyboard.poll(event);
 
-        game.process_input(&gamepad, &keyboard, &mouse);
+        game.process_input(&mut gamepad, &mut keyboard, &mut mouse);
         game.update();
         game.draw(&mut sprite_batch);
 
