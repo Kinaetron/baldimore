@@ -1,4 +1,5 @@
 use crate::game::Game;
+use sdl2::event;
 use system_sdl::SDLSystem;
 use spin_sleep::LoopHelper;
 use crate::platform::system_sdl;
@@ -26,7 +27,6 @@ impl Window
 
 pub fn run(mut window: Window, mut game: impl Game) -> Result<(), String>
 {
-
     let mut loop_helper = LoopHelper::builder()
         .report_interval_s(0.5)
         .build_with_target_rate(60.5);
@@ -42,19 +42,20 @@ pub fn run(mut window: Window, mut game: impl Game) -> Result<(), String>
     {
         loop_helper.loop_start();
 
-        let event = &window.sdl2_system.next_event();
-
-        mouse.clear();
-        gamepad.clear();
-        keyboard.clear();
-
-        mouse.poll(event);
-        gamepad.poll(&window.sdl2_system.game_controller_subsystem, event);
-        keyboard.poll(event);
+        for event in window.sdl2_system.event_pump.poll_iter()
+        {
+            mouse.poll(&event);
+            gamepad.poll(&window.sdl2_system.game_controller_subsystem, &event);
+            keyboard.poll(&event);
+        }
 
         game.process_input(&mut gamepad, &mut keyboard, &mut mouse);
         game.update();
         game.draw(&mut sprite_batch);
+
+        mouse.clear();
+        gamepad.clear();
+        keyboard.clear();
 
         loop_helper.loop_sleep();
     }

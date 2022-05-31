@@ -24,11 +24,11 @@ impl Keyboard
         }
     }
 
-    pub fn poll(&mut self, event: &Option<Event>)
+    pub fn poll(&mut self, event: &Event)
     {
         match event
         {
-            Some(Event::KeyDown { scancode: Some(scancode), repeat: false, .. }) =>
+            Event::KeyDown { scancode: Some(scancode), repeat: false, .. } =>
             {
                 let was_up = self.keys_down.insert(*scancode);
                                 
@@ -36,7 +36,7 @@ impl Keyboard
                     self.keys_pressed.insert(*scancode);
                 }
             }
-            Some(Event::KeyUp { scancode: Some(scancode), repeat: false, ..  }) =>
+            Event::KeyUp { scancode: Some(scancode), repeat: false, ..  } =>
             {
                 let was_down = self.keys_down.remove(scancode);
 
@@ -44,7 +44,7 @@ impl Keyboard
                     self.keys_released.insert(*scancode);
                 }
             }
-            Some(Event::Quit { .. }) => {
+            Event::Quit { .. } => {
                 self.is_running = false;
             }
 

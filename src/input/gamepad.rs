@@ -11,8 +11,6 @@ pub struct Gamepad
     controller_count: u32,
     left_trigger: HashMap<u32, f32>,
     right_trigger: HashMap<u32, f32>,
-    left_stick: HashMap<u32, Vector2<f32>>,
-    right_stick: HashMap<u32, Vector2<f32>>,
     controllers: HashMap<u32, GameController>,
     buttons_down: HashMap<u32, GamePadButton>,
     buttons_pressed: HashMap<u32, GamePadButton>,
@@ -26,8 +24,6 @@ impl Gamepad
         Self 
         {
             controller_count: 0,
-            left_stick: HashMap::new(),
-            right_stick: HashMap::new(),
             left_trigger: HashMap::new(),
             right_trigger: HashMap::new(),
             buttons_down: HashMap::new(), 
@@ -37,13 +33,13 @@ impl Gamepad
         }
     }
 
-    pub fn poll(&mut self, game_controller_subsystem: &sdl2::GameControllerSubsystem, event: &Option<Event>)
+    pub fn poll(&mut self, game_controller_subsystem: &sdl2::GameControllerSubsystem, event: &Event)
     {        
         self.open_controllers(game_controller_subsystem);
 
         match event
         {
-            Some(Event::ControllerButtonDown { which, button, .. }) =>
+            Event::ControllerButtonDown { which, button, .. } =>
             {
                 let was_up = self.buttons_down.insert(*which,*button);
                 
@@ -53,7 +49,7 @@ impl Gamepad
                     None => { self.buttons_pressed.insert(*which,*button); }
                 }
             }
-            Some(Event::ControllerButtonUp { which, button, .. }) =>
+            Event::ControllerButtonUp { which, button, .. } =>
             {
                 let was_down = self.buttons_down.remove(which);
 
@@ -63,65 +59,13 @@ impl Gamepad
                     None => { self.buttons_released.insert(*which, *button); }
                 }
             }
-            Some(Event::ControllerAxisMotion { which, axis: Axis::TriggerLeft, value: val, .. }) =>
+            Event::ControllerAxisMotion { which, axis: Axis::TriggerLeft, value: val, .. } =>
             {
                 self.left_trigger.insert(*which, (*val as f32) / CONTROLLER_RANGE);
             } 
-            Some(Event::ControllerAxisMotion { which, axis: Axis::TriggerRight, value: val, .. }) =>
+            Event::ControllerAxisMotion { which, axis: Axis::TriggerRight, value: val, .. } =>
             {
                 self.right_trigger.insert(*which, (*val as f32) / CONTROLLER_RANGE);
-            },
-            Some(Event::ControllerAxisMotion { which, axis: Axis::LeftX, value: val, .. }) =>
-            {
-                let left_x_new = ((*val) as f32) / CONTROLLER_RANGE;
-                let mut left_y_old: f32 = 0.0;
-
-                match self.left_stick.get(which)  
-                {
-                    Some(old_vector) => { left_y_old = old_vector.y }
-                    None => { self.left_stick.insert(*which, Vector2 { x: left_x_new as f32, y: 0.0 }); }
-                }
-
-                self.left_stick.insert(*which, Vector2 { x: left_x_new, y: left_y_old });
-            },
-            Some(Event::ControllerAxisMotion { which, axis: Axis::LeftY, value: val, .. }) =>
-            {
-                let left_y_new = ((*val) as f32) / CONTROLLER_RANGE;
-                let mut left_x_old: f32 = 0.0;
-
-                match self.left_stick.get(which)  
-                {
-                    Some(old_vector) => { left_x_old = old_vector.x }
-                    None => { self.left_stick.insert(*which, Vector2 { x: 0.0 as f32, y: left_y_new }); }
-                }
-
-                self.left_stick.insert(*which, Vector2 { x: left_x_old, y: left_y_new });
-            },
-            Some(Event::ControllerAxisMotion { which, axis: Axis::RightX, value: val, .. }) =>
-            {
-                let left_x_new = ((*val) as f32) / CONTROLLER_RANGE;
-                let mut left_y_old: f32 = 0.0;
-
-                match self.left_stick.get(which)  
-                {
-                    Some(old_vector) => { left_y_old = old_vector.y }
-                    None => { self.left_stick.insert(*which, Vector2 { x: left_x_new as f32, y: 0.0 }); }
-                }
-
-                self.left_stick.insert(*which, Vector2 { x: left_x_new, y: left_y_old });
-            },
-            Some(Event::ControllerAxisMotion { which, axis: Axis::RightY, value: val, .. }) =>
-            {
-                let left_y_new = ((*val) as f32) / CONTROLLER_RANGE;
-                let mut left_x_old: f32 = 0.0;
-
-                match self.left_stick.get(which)  
-                {
-                    Some(old_vector) => { left_x_old = old_vector.x }
-                    None => { self.left_stick.insert(*which, Vector2 { x: 0.0 as f32, y: left_y_new }); }
-                }
-
-                self.left_stick.insert(*which, Vector2 { x: left_x_old, y: left_y_new });
             },
             _ => {}
         }
@@ -129,6 +73,8 @@ impl Gamepad
 
     pub fn clear(&mut self)
     {
+        self.left_trigger.clear();
+        self.right_trigger.clear();
         self.buttons_pressed.clear();
         self.buttons_released.clear();
     }
@@ -195,18 +141,22 @@ impl Gamepad
 
     pub fn left_stick(&mut self, controller_index: u32) -> Vector2<f32>
     {
-        match self.left_stick.get(&controller_index) {
-            Some(left_stick ) => { return *left_stick }
-            None => { return Vector2 { x: 0.0, y: 0.0 } }
-        }
+        let controller = self.controllers.get(&controller_index).unwrap();
+
+        let x_axis = (controller.axis(Axis::LeftX) as f32) / CONTROLLER_RANGE;
+        let y_axis = (controller.axis(Axis::LeftY) as f32) / CONTROLLER_RANGE;
+
+        Vector2 { x: x_axis, y: y_axis }
     }
 
     pub fn right_stick(&mut self, controller_index: u32) -> Vector2<f32>
     {
-        match self.right_stick.get(&controller_index) {
-            Some(right_stick ) => { return *right_stick }
-            None => { return Vector2 { x: 0.0, y: 0.0 } }
-        }
+        let controller = self.controllers.get(&controller_index).unwrap();
+
+        let x_axis = (controller.axis(Axis::RightX) as f32) / CONTROLLER_RANGE;
+        let y_axis = (controller.axis(Axis::RightX) as f32) / CONTROLLER_RANGE;
+
+        Vector2 { x: x_axis, y: y_axis }
     }
 
     fn open_controllers(&mut self, game_controller_subsystem: &sdl2::GameControllerSubsystem)
@@ -217,7 +167,7 @@ impl Gamepad
         {
             let game_controller = match game_controller_subsystem.open(id)
             {
-                Ok(controller) =>  { self.controller_count += 1; Some(controller)  },
+                Ok(controller) =>  { println!("the controller has been opened"); self.controller_count += 1; Some(controller)  },
                 Err(..) => { None }
             };
 
