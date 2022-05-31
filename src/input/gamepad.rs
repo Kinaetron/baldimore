@@ -71,8 +71,57 @@ impl Gamepad
             {
                 self.right_trigger.insert(*which, (*val as f32) / CONTROLLER_RANGE);
             },
-            Some(Event::ControllerAxisMotion { which, axis, value: val, .. }) =>
+            Some(Event::ControllerAxisMotion { which, axis: Axis::LeftX, value: val, .. }) =>
             {
+                let left_x_new = ((*val) as f32) / CONTROLLER_RANGE;
+                let mut left_y_old: f32 = 0.0;
+
+                match self.left_stick.get(which)  
+                {
+                    Some(old_vector) => { left_y_old = old_vector.y }
+                    None => { self.left_stick.insert(*which, Vector2 { x: left_x_new as f32, y: 0.0 }); }
+                }
+
+                self.left_stick.insert(*which, Vector2 { x: left_x_new, y: left_y_old });
+            },
+            Some(Event::ControllerAxisMotion { which, axis: Axis::LeftY, value: val, .. }) =>
+            {
+                let left_y_new = ((*val) as f32) / CONTROLLER_RANGE;
+                let mut left_x_old: f32 = 0.0;
+
+                match self.left_stick.get(which)  
+                {
+                    Some(old_vector) => { left_x_old = old_vector.x }
+                    None => { self.left_stick.insert(*which, Vector2 { x: 0.0 as f32, y: left_y_new }); }
+                }
+
+                self.left_stick.insert(*which, Vector2 { x: left_x_old, y: left_y_new });
+            },
+            Some(Event::ControllerAxisMotion { which, axis: Axis::RightX, value: val, .. }) =>
+            {
+                let left_x_new = ((*val) as f32) / CONTROLLER_RANGE;
+                let mut left_y_old: f32 = 0.0;
+
+                match self.left_stick.get(which)  
+                {
+                    Some(old_vector) => { left_y_old = old_vector.y }
+                    None => { self.left_stick.insert(*which, Vector2 { x: left_x_new as f32, y: 0.0 }); }
+                }
+
+                self.left_stick.insert(*which, Vector2 { x: left_x_new, y: left_y_old });
+            },
+            Some(Event::ControllerAxisMotion { which, axis: Axis::RightY, value: val, .. }) =>
+            {
+                let left_y_new = ((*val) as f32) / CONTROLLER_RANGE;
+                let mut left_x_old: f32 = 0.0;
+
+                match self.left_stick.get(which)  
+                {
+                    Some(old_vector) => { left_x_old = old_vector.x }
+                    None => { self.left_stick.insert(*which, Vector2 { x: 0.0 as f32, y: left_y_new }); }
+                }
+
+                self.left_stick.insert(*which, Vector2 { x: left_x_old, y: left_y_new });
             },
             _ => {}
         }
@@ -144,20 +193,19 @@ impl Gamepad
         }
     }
 
-    // THIS IS AWFUL FIX IT
-    pub fn left_stick(&mut self, controller_index: u32) -> Vector2<i32>
+    pub fn left_stick(&mut self, controller_index: u32) -> Vector2<f32>
     {
-        match self.controllers.get_mut(&controller_index)
-        {
-            Some(controller) => 
-            {  
-                return Vector2 
-                { 
-                    x: ((controller.axis(Axis::LeftX) as i32) / CONTROLLER_RANGE as i32), 
-                    y: ((controller.axis(Axis::LeftY) as i32) / CONTROLLER_RANGE as i32)
-                }
-            },
-            None => todo!(),
+        match self.left_stick.get(&controller_index) {
+            Some(left_stick ) => { return *left_stick }
+            None => { return Vector2 { x: 0.0, y: 0.0 } }
+        }
+    }
+
+    pub fn right_stick(&mut self, controller_index: u32) -> Vector2<f32>
+    {
+        match self.right_stick.get(&controller_index) {
+            Some(right_stick ) => { return *right_stick }
+            None => { return Vector2 { x: 0.0, y: 0.0 } }
         }
     }
 
