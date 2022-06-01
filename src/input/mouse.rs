@@ -24,11 +24,11 @@ impl Mouse
         }
     }
 
-    pub fn poll(&mut self, event: &Option<Event>)
+    pub fn poll(&mut self, event: &Event)
     {
         match event
         {
-            Some(Event::MouseButtonDown { mouse_btn, .. }) =>
+            Event::MouseButtonDown { mouse_btn, .. } =>
             {
                 let was_up = self.buttons_down.insert(*mouse_btn);
                                 
@@ -36,7 +36,7 @@ impl Mouse
                     self.buttons_pressed.insert(*mouse_btn);
                 }
             }
-            Some(Event::MouseButtonUp { mouse_btn, .. }) =>
+            Event::MouseButtonUp { mouse_btn, .. } =>
             {
                 let was_down = self.buttons_down.remove(mouse_btn);
 
@@ -44,7 +44,7 @@ impl Mouse
                     self.buttons_released.insert(*mouse_btn);
                 }
             }
-            Some(Event::MouseMotion { x, y, .. }) => {
+            Event::MouseMotion { x, y, .. } => {
                 self.position = Vector2::new(*x as f32, *y as f32);
             }
 
