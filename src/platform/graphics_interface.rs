@@ -62,7 +62,7 @@ impl GraphicsInterface
 {
     pub fn new(sdl2_system: &SDLSystem) -> Result<Self, String>
     {
-        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(&sdl2_system.window) };
 
         let (width, height) = sdl2_system.window.size();
@@ -218,8 +218,11 @@ impl GraphicsInterface
         self.clear_color = wgpu::Color { r: red, g: green, b: blue, a: alpha };
     }
 
-    pub fn batch_render(&self, batch_information_vec: &Vec<BatchInformation>)
+    pub fn batch_render(& mut self, batch_information_vec: &Vec<BatchInformation>)
     { 
+        // I should probably move this, it's a quick fix for the minimizing issue
+        self.surface.configure(&self.device, &self.config);
+
         let output = self.surface.get_current_texture().unwrap();
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 

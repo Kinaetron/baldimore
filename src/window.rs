@@ -1,5 +1,4 @@
 use crate::game::Game;
-use sdl2::event;
 use system_sdl::SDLSystem;
 use spin_sleep::LoopHelper;
 use crate::platform::system_sdl;
