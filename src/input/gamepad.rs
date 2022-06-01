@@ -1,5 +1,6 @@
 use crate::math::Vector2;
 use std::collections::HashMap;
+use cgmath::{InnerSpace, Zero};
 pub use sdl2::controller::Button as GamePadButton;
 use sdl2::{event::Event, controller::GameController, controller::Axis};
 
@@ -135,28 +136,54 @@ impl Gamepad
         match self.controllers.get_mut(&controller_index)
         {
             Some(controller) => { controller.set_rumble(force_left_value, force_right_value, time).unwrap(); },
-            None => todo!(),
+            None => { },
         }
     }
 
-    pub fn left_stick(&mut self, controller_index: u32) -> Vector2<f32>
+    pub fn left_stick(&mut self, deadzone: f32, controller_index: u32) -> Vector2<f32>
     {
-        let controller = self.controllers.get(&controller_index).unwrap();
+        let controller = self.controllers.get(&controller_index);
 
-        let x_axis = (controller.axis(Axis::LeftX) as f32) / CONTROLLER_RANGE;
-        let y_axis = (controller.axis(Axis::LeftY) as f32) / CONTROLLER_RANGE;
-
-        Vector2 { x: x_axis, y: y_axis }
+        match controller
+        {
+            Some(controller) =>
+            {
+                let x_axis = (controller.axis(Axis::LeftX) as f32) / CONTROLLER_RANGE;
+                let y_axis = (controller.axis(Axis::LeftY) as f32) / CONTROLLER_RANGE;
+        
+                let stick_vector =  Vector2 { x: x_axis, y: y_axis };
+        
+                if stick_vector.magnitude() < deadzone.abs() {
+                   return Vector2::zero(); 
+                }
+        
+                stick_vector
+            },
+            None => Vector2::zero()
+        }
     }
 
-    pub fn right_stick(&mut self, controller_index: u32) -> Vector2<f32>
+    pub fn right_stick(&mut self, deadzone: f32, controller_index: u32) -> Vector2<f32>
     {
-        let controller = self.controllers.get(&controller_index).unwrap();
+        let controller = self.controllers.get(&controller_index);
 
-        let x_axis = (controller.axis(Axis::RightX) as f32) / CONTROLLER_RANGE;
-        let y_axis = (controller.axis(Axis::RightX) as f32) / CONTROLLER_RANGE;
-
-        Vector2 { x: x_axis, y: y_axis }
+        match controller
+        {
+            Some(controller) =>
+            {
+                let x_axis = (controller.axis(Axis::RightX) as f32) / CONTROLLER_RANGE;
+                let y_axis = (controller.axis(Axis::RightY) as f32) / CONTROLLER_RANGE;
+        
+                let stick_vector =  Vector2 { x: x_axis, y: y_axis };
+        
+                if stick_vector.magnitude() < deadzone.abs() {
+                   return Vector2::zero(); 
+                }
+        
+                stick_vector
+            },
+            None => Vector2::zero()
+        }
     }
 
     fn open_controllers(&mut self, game_controller_subsystem: &sdl2::GameControllerSubsystem)
@@ -167,7 +194,7 @@ impl Gamepad
         {
             let game_controller = match game_controller_subsystem.open(id)
             {
-                Ok(controller) =>  { println!("the controller has been opened"); self.controller_count += 1; Some(controller)  },
+                Ok(controller) =>  { self.controller_count += 1; Some(controller)  },
                 Err(..) => { None }
             };
 
