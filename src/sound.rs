@@ -33,8 +33,6 @@ impl SoundManager
     pub fn resume_all(&mut self) {
         self.manager.resume(Default::default()).unwrap();
     }
-
-
 }
 
 impl  Sound {
