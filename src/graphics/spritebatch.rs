@@ -11,8 +11,8 @@ pub struct SpriteBatch
 
 pub struct BatchInformation
 {
-    pub texture: Arc<Texture>,
     pub indices: Vec<u16>,
+    pub texture: Arc<Texture>,
     pub vertices: Vec<Vertex>,
 }
 
