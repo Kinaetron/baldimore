@@ -224,6 +224,8 @@ impl GraphicsInterface
         self.surface.configure(&self.device, &self.config);
 
         let output = self.surface.get_current_texture().unwrap();
+
+
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
