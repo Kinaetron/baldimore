@@ -18,7 +18,13 @@ impl Window
     pub fn new(window_title: &str, width: u32, height: u32) -> Self
     {
         let sdl2_system = SDLSystem::new(window_title, width, height);
-        let graphics_interface = GraphicsInterface::new(&sdl2_system).unwrap();
+        let graphics_interface = match GraphicsInterface::new(&sdl2_system)
+        {
+            Ok(graphics_interface) => { graphics_interface },
+            Err(e) => {   
+                panic!("couldn't create graphics interface for window, error message: {}", e) 
+            }
+        };
 
         Self { sdl2_system, graphics_interface }
     }
