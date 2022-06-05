@@ -1,6 +1,6 @@
 use std::fs;
-use std::num::NonZeroU32;
 use std::path::Path;
+use std::num::NonZeroU32;
 use image::GenericImageView;
 
 use crate::platform::graphics_interface::GraphicsInterface;

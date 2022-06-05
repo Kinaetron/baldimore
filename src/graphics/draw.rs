@@ -1,33 +1,35 @@
 use std::sync::Arc;
+use crate::graphics::colour::Colour;
+
 use crate::{math::Vector2, platform::graphics_interface::{Vertex, GraphicsInterface}, graphics::texture::Texture};
 
-pub struct SpriteBatch
+pub struct Draw
 {
     batch_began: bool,
     pub graphics_interface: GraphicsInterface,
-    batch_information_vec: Vec<BatchInformation>
+    batch_information_vec: Vec<DrawInformation>
 }
 
 
-pub struct BatchInformation
+pub struct DrawInformation
 {
     pub indices: Vec<u16>,
     pub texture: Arc<Texture>,
     pub vertices: Vec<Vertex>,
 }
 
-impl BatchInformation
+impl DrawInformation
 {
     pub fn new(texture: Arc<Texture>, vertices: Vec<Vertex>, indices: Vec<u16>) -> Self {
         Self { texture, indices, vertices }
     }
 }
 
-impl SpriteBatch
+impl Draw
 {
     pub fn new(graphics_interface: GraphicsInterface) -> Self 
     {
-        let batch_information_vec: Vec<BatchInformation> = Vec::new();
+        let batch_information_vec: Vec<DrawInformation> = Vec::new();
 
         Self { batch_began: false, graphics_interface, batch_information_vec }
     }
@@ -42,7 +44,7 @@ impl SpriteBatch
     }
 
 
-    pub fn draw(&mut self, texture: Arc<Texture>, position: Vector2<f32>)
+    pub fn draw(&mut self, texture: Arc<Texture>, position: Vector2<f32>, colour: Colour)
     {
         if !self.batch_began {
             panic!("You can't call begin twice in a row");
@@ -54,12 +56,14 @@ impl SpriteBatch
         let mut vertices: Vec<Vertex>  = Vec::new();
         let indices = vec![0, 1, 3, 1 ,2 ,3 ];
 
-        vertices.push(Vertex { position: [ position.x - origin_x, position.y - origin_y], tex_coords: [0.0, 0.0] }); // bottom left
-        vertices.push(Vertex { position: [ position.x - origin_x, position.y + origin_y], tex_coords: [0.0, 1.0] }); // top left
-        vertices.push(Vertex { position: [ position.x + origin_x, position.y + origin_y], tex_coords: [1.0, 1.0] }); // top right
-        vertices.push(Vertex { position: [ position.x + origin_x, position.y - origin_y], tex_coords: [1.0, 0.0] }); // bottom right
+        let color = colour.converted_to_color();
 
-        let batch_information = BatchInformation::new(texture, vertices, indices);
+        vertices.push(Vertex { position: [ position.x - origin_x, position.y - origin_y], tex_coords: [0.0, 0.0], color: [color.r, color.g , color.b, color.a ] }); // bottom left
+        vertices.push(Vertex { position: [ position.x - origin_x, position.y + origin_y], tex_coords: [0.0, 1.0], color: [color.r, color.g , color.b, color.a ] }); // top left
+        vertices.push(Vertex { position: [ position.x + origin_x, position.y + origin_y], tex_coords: [1.0, 1.0], color: [color.r, color.g , color.b, color.a ] }); // top right
+        vertices.push(Vertex { position: [ position.x + origin_x, position.y - origin_y], tex_coords: [1.0, 0.0], color: [color.r, color.g , color.b, color.a ] }); // bottom right
+
+        let batch_information = DrawInformation::new(texture, vertices, indices);
         self.batch_information_vec.push(batch_information);
     }
 

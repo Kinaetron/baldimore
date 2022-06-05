@@ -2,7 +2,7 @@ use std::iter;
 use crate::math;
 use wgpu::util::DeviceExt;
 use crate::platform::system_sdl::SDLSystem;
-use crate::graphics::spritebatch::BatchInformation;
+use crate::graphics::draw::DrawInformation;
 
 
 #[repr(C)]
@@ -10,6 +10,7 @@ use crate::graphics::spritebatch::BatchInformation;
 pub struct Vertex {
     pub position: [f32; 2],
     pub tex_coords: [f32; 2],
+    pub color: [f32; 4]
 }
 
 #[repr(C)]
@@ -40,6 +41,11 @@ impl Vertex {
                     offset: mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x4,
                 }
             ],
         }
@@ -218,7 +224,7 @@ impl GraphicsInterface
         self.clear_color = wgpu::Color { r: red, g: green, b: blue, a: alpha };
     }
 
-    pub fn batch_render(& mut self, batch_information_vec: &Vec<BatchInformation>)
+    pub fn batch_render(& mut self, batch_information_vec: &Vec<DrawInformation>)
     { 
         // I should probably move this, it's a quick fix for the minimizing issue
         self.surface.configure(&self.device, &self.config);
