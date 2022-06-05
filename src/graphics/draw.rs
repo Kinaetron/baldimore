@@ -44,7 +44,7 @@ impl Draw
     }
 
 
-    pub fn draw(&mut self, texture: Arc<Texture>, position: Vector2<f32>, colour: Colour)
+    pub fn sprite(&mut self, texture: Arc<Texture>, position: Vector2<f32>, colour: Colour)
     {
         if !self.batch_began {
             panic!("You can't call begin twice in a row");
