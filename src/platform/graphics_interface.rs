@@ -15,11 +15,11 @@ pub struct Vertex {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct CameraUniform {
+struct WorldUniform {
     orthographic_projection: [[f32; 4]; 4]
 }
 
-impl CameraUniform {
+impl WorldUniform {
     fn new(width: f32, height: f32) -> Self {
         let orthographic_projection =  math::ortho(0.0, width as f32, height as f32, 0.0, -1.0, 1.0);
         Self { orthographic_projection: orthographic_projection.into() }
@@ -153,11 +153,11 @@ impl GraphicsInterface
             label: Some("camera_bind_group_layout"),
         });
 
-    let camera_uniform = CameraUniform::new(width as f32, height as f32);
+    let world_uniform = WorldUniform::new(width as f32, height as f32);
 
     let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[camera_uniform]),
+            contents: bytemuck::cast_slice(&[world_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
 
