@@ -1,5 +1,6 @@
 use std::iter;
 use crate::math;
+use cgmath::{Matrix4, ortho};
 use wgpu::util::DeviceExt;
 use crate::platform::system_sdl::SDLSystem;
 use crate::graphics::draw::DrawInformation;
@@ -8,23 +9,11 @@ use crate::graphics::draw::DrawInformation;
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
-    pub position: [f32; 2],
+    pub position: [f32; 4],
     pub tex_coords: [f32; 2],
     pub color: [f32; 4]
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct WorldUniform {
-    orthographic_projection: [[f32; 4]; 4]
-}
-
-impl WorldUniform {
-    fn new(width: f32, height: f32) -> Self {
-        let orthographic_projection =  math::ortho(0.0, width as f32, height as f32, 0.0, -1.0, 1.0);
-        Self { orthographic_projection: orthographic_projection.into() }
-    }
-}
 impl Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         use std::mem;
@@ -35,15 +24,15 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x2,
+                    format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2,
                 },
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
                     shader_location: 2,
                     format: wgpu::VertexFormat::Float32x4,
                 }
@@ -54,14 +43,14 @@ impl Vertex {
 
 pub struct GraphicsInterface
 {
-    pub surface: wgpu::Surface,
-    pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    pub device: wgpu::Device,
+    pub surface: wgpu::Surface,
+    pub world_matrix: Matrix4<f32>,
     pub config: wgpu::SurfaceConfiguration,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    camera_bind_group: wgpu::BindGroup,
     render_pipeline: wgpu::RenderPipeline,
-    clear_color: wgpu::Color
+    clear_color: wgpu::Color,
 }
 
 impl GraphicsInterface
@@ -138,42 +127,10 @@ impl GraphicsInterface
         label: Some("texture_bind_group_layout"),
     });
 
-    let camera_bind_group_layout =
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("camera_bind_group_layout"),
-        });
-
-    let world_uniform = WorldUniform::new(width as f32, height as f32);
-
-    let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[world_uniform]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-    });
-
-    let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-            label: Some("camera_bind_group"),
-        });
-
     let render_pipeline_layout =
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
+            bind_group_layouts: &[&texture_bind_group_layout],
             push_constant_ranges: &[],
     });
 
@@ -214,10 +171,10 @@ impl GraphicsInterface
         },
         multiview: None,
     });
-
         let clear_color = wgpu::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+        let world_matrix = math::ortho(0.0, width as f32, height as f32, 0.0, -1.0, 1.0);
         
-        Ok(Self{ surface, device, queue, config, texture_bind_group_layout, camera_bind_group, render_pipeline, clear_color })
+        Ok(Self{ surface, device, queue, config, texture_bind_group_layout, render_pipeline, clear_color, world_matrix })
     }
 
     pub fn clear(&mut self, red : f64, green: f64, blue: f64, alpha: f64) {
@@ -296,7 +253,6 @@ impl GraphicsInterface
 
                 render_pass.set_pipeline(&self.render_pipeline);
                 render_pass.set_bind_group(0, &texture_bind_group, &[]);
-                render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                 render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                 render_pass.draw_indexed(0..batch_information.indices.len() as u32, 0, 0..1);

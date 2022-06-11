@@ -10,10 +10,10 @@ pub struct Colour
 
 pub struct Color
 {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
+    pub r: f64,
+    pub g: f64,
+    pub b: f64,
+    pub a: f64,
 }
 
 impl Colour
@@ -24,10 +24,10 @@ impl Colour
 
     pub fn converted_to_color(&self) -> Color
     {
-        let r = (self.red / COLOR_RANGE) as f32;
-        let g = (self.green / COLOR_RANGE) as f32;
-        let b = (self.blue / COLOR_RANGE) as f32;
-        let a = (self.alpha / COLOR_RANGE) as f32;
+        let r = (self.red / COLOR_RANGE) as f64;
+        let g = (self.green / COLOR_RANGE) as f64;
+        let b = (self.blue / COLOR_RANGE) as f64;
+        let a = (self.alpha / COLOR_RANGE) as f64;
 
         Color { r, g, b, a }
     }
@@ -39,6 +39,6 @@ impl Colour
     pub const RED:            Colour = Colour { red: 255, green: 0, blue: 0, alpha: 255 };
     pub const GREEN:          Colour = Colour { red: 0, green: 255, blue: 0, alpha: 255 };
     pub const BLUE:           Colour = Colour { red: 0, green: 0, blue: 255, alpha: 255 };
-    pub const BLACK:          Colour = Colour { red: 255, green: 255, blue: 255, alpha: 255 };
+    pub const BLACK:          Colour = Colour { red: 0, green: 0, blue: 0, alpha: 255 };
     pub const CORNFLOWERBLUE: Colour = Colour { red: 100, green: 149, blue: 237, alpha: 255 };
 }
