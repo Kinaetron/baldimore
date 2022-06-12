@@ -5,4 +5,5 @@ pub mod sound;
 pub mod window;
 pub mod platform;
 pub mod graphics;
+pub mod rectangle;
 pub use crate::game::Game;

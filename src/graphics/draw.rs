@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::graphics::colour::Colour;
+use crate::{graphics::colour::Colour, rectangle::Rectangle};
 use cgmath::{Rad, Vector2, Vector3, Vector4, Matrix4, SquareMatrix};
 use crate::{ platform::graphics_interface::{Vertex, GraphicsInterface}, graphics::texture::Texture};
 
@@ -51,8 +51,7 @@ impl Draw
         self.camera_matrix = camera_matrix;
     }
 
-
-    pub fn sprite(&mut self, texture: Arc<Texture>, position: Vector2<f32>, rotation: f32,  colour: Colour)
+    pub fn sprite(&mut self, texture: Arc<Texture>, position: Vector2<f32>, draw_area: Rectangle, size: Vector2<f32>, rotation: f32,  colour: Colour)
     {
         if !self.batch_began {
             panic!("You can't call begin twice in a row");
@@ -63,8 +62,8 @@ impl Draw
 
         let color = colour.converted_to_color();
 
-        let origin_x = (texture.width / 2) as f32;
-        let origin_y = (texture.height / 2) as f32;
+        let origin_x = size.x as f32 / 2.0;
+        let origin_y = size.y as f32 / 2.0;
 
         let mut model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
         model_matrix = model_matrix * Matrix4::from_angle_z(Rad(rotation));
@@ -76,10 +75,15 @@ impl Draw
         let vertex_3 =  finan_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
         let vertex_4 =  finan_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
 
-        vertices.push(Vertex { position: [ vertex_1.x, vertex_1.y, vertex_1.z, vertex_1.w ], tex_coords: [0.0, 0.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom left
-        vertices.push(Vertex { position: [ vertex_2.x, vertex_2.y, vertex_2.z, vertex_2.w ], tex_coords: [0.0, 1.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top left
-        vertices.push(Vertex { position: [ vertex_3.x, vertex_3.y, vertex_3.z, vertex_3.w ], tex_coords: [1.0, 1.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top right
-        vertices.push(Vertex { position: [ vertex_4.x, vertex_4.y, vertex_4.z, vertex_4.w ], tex_coords: [1.0, 0.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom right
+        let left_tex_coord = draw_area.left / (texture.width as f32);
+        let right_tex_coord = draw_area.right / (texture.width as f32);
+        let top_tex_coord = draw_area.top / (texture.height as f32);
+        let bottom_tex_coord = draw_area.bottom / (texture.height as f32);
+
+        vertices.push(Vertex { position: [ vertex_1.x, vertex_1.y, vertex_1.z, vertex_1.w ], tex_coords: [left_tex_coord,  bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom left
+        vertices.push(Vertex { position: [ vertex_2.x, vertex_2.y, vertex_2.z, vertex_2.w ], tex_coords: [left_tex_coord,     top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top left
+        vertices.push(Vertex { position: [ vertex_3.x, vertex_3.y, vertex_3.z, vertex_3.w ], tex_coords: [right_tex_coord,    top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top right
+        vertices.push(Vertex { position: [ vertex_4.x, vertex_4.y, vertex_4.z, vertex_4.w ], tex_coords: [right_tex_coord, bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom right
 
         let batch_information = DrawInformation::new(texture, vertices, indices);
         self.batch_information_vec.push(batch_information);
