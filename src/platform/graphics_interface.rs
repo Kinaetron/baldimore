@@ -1,6 +1,6 @@
 use std::iter;
 use crate::math;
-use cgmath::{Matrix4, ortho};
+use cgmath::{Matrix4};
 use wgpu::util::DeviceExt;
 use crate::platform::system_sdl::SDLSystem;
 use crate::graphics::draw::DrawInformation;

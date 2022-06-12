@@ -9,6 +9,7 @@ use crate::{ platform::graphics_interface::{Vertex, GraphicsInterface}, graphics
 pub struct Draw
 {
     batch_began: bool,
+    camera_matrix: Matrix4<f32>,
     pub graphics_interface: GraphicsInterface,
     batch_information_vec: Vec<DrawInformation>
 }
@@ -32,9 +33,10 @@ impl Draw
 {
     pub fn new(graphics_interface: GraphicsInterface) -> Self 
     {
+        let camera_matrix = Matrix4::identity();
         let batch_information_vec: Vec<DrawInformation> = Vec::new();
 
-        Self { batch_began: false, graphics_interface, batch_information_vec }
+        Self { batch_began: false, graphics_interface, batch_information_vec, camera_matrix }
     }
 
     pub fn clear(&mut self, colour: Colour) 
@@ -42,13 +44,14 @@ impl Draw
         self.graphics_interface.clear(color.r, color.g, color.b, color.a)
     }
 
-    pub fn begin(&mut self) {
+    pub fn begin(&mut self, camera_matrix: Matrix4<f32>) {
 
         if self.batch_began {
             panic!("You can't call begin twice in a row");
         }
 
         self.batch_began = true;
+        self.camera_matrix = camera_matrix;
     }
 
 
@@ -68,12 +71,13 @@ impl Draw
 
         let mut model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
         model_matrix = model_matrix * Matrix4::from_angle_z(Rad(rotation));
-        model_matrix = self.graphics_interface.world_matrix * model_matrix;
 
-        let vertex_1 =  model_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
-        let vertex_2 =  model_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_3 =  model_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_4 =  model_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let finan_matrix = self.graphics_interface.world_matrix * self.camera_matrix * model_matrix;
+
+        let vertex_1 =  finan_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let vertex_2 =  finan_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_3 =  finan_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_4 =  finan_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
 
         vertices.push(Vertex { position: [ vertex_1.x, vertex_1.y, vertex_1.z, vertex_1.w ], tex_coords: [0.0, 0.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom left
         vertices.push(Vertex { position: [ vertex_2.x, vertex_2.y, vertex_2.z, vertex_2.w ], tex_coords: [0.0, 1.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top left
