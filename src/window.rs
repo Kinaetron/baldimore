@@ -3,7 +3,7 @@ use crate::input::Input;
 use system_sdl::SDLSystem;
 use spin_sleep::LoopHelper;
 use crate::platform::system_sdl;
-use crate::graphics::spritebatch::SpriteBatch;
+use crate::graphics::draw::Draw;
 use crate::input::{ gamepad::Gamepad, keyboard::Keyboard, mouse::Mouse };
 use crate::platform::graphics_interface::GraphicsInterface;
 
@@ -38,7 +38,7 @@ pub fn run(mut window: Window, mut game: impl Game) -> Result<(), String>
         .build_with_target_rate(60.5);
 
 
-    let mut sprite_batch = SpriteBatch::new(window.graphics_interface);
+    let mut sprite_batch = Draw::new(window.graphics_interface);
 
     let gamepad = Gamepad::new();
     let keyboard = Keyboard::new();

@@ -1,5 +1,5 @@
 use crate::input::Input;
-use crate::graphics::spritebatch::SpriteBatch;
+use crate::graphics::draw::Draw;
 
 
 pub trait Game
@@ -10,7 +10,7 @@ pub trait Game
     fn update(&mut self) {
     }
 
-    fn draw(&mut self, graphics: &mut SpriteBatch) 
+    fn draw(&mut self, draw: &mut Draw) 
     {
     }
 }
