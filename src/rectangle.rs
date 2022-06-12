@@ -10,7 +10,6 @@ pub struct Rectangle
     pub right: f32,
     pub top: f32,
     pub bottom: f32
-
 }
 
 impl Rectangle

@@ -77,8 +77,8 @@ impl Draw
 
         let left_tex_coord = draw_area.left / (texture.width as f32);
         let right_tex_coord = draw_area.right / (texture.width as f32);
-        let top_tex_coord = draw_area.top / (texture.height as f32);
-        let bottom_tex_coord = draw_area.bottom / (texture.height as f32);
+        let top_tex_coord = 1.0 - draw_area.top / (texture.height as f32);
+        let bottom_tex_coord = 1.0 - draw_area.bottom / (texture.height as f32);
 
         vertices.push(Vertex { position: [ vertex_1.x, vertex_1.y, vertex_1.z, vertex_1.w ], tex_coords: [left_tex_coord,  bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom left
         vertices.push(Vertex { position: [ vertex_2.x, vertex_2.y, vertex_2.z, vertex_2.w ], tex_coords: [left_tex_coord,     top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top left
