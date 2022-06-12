@@ -1,9 +1,6 @@
 use std::sync::Arc;
-
-use cgmath::{Matrix4, Rad, Vector3, Vector4, SquareMatrix};
-
 use crate::graphics::colour::Colour;
-use crate::math::{ Vector2};
+use cgmath::{Rad, Vector2, Vector3, Vector4, Matrix4, SquareMatrix};
 use crate::{ platform::graphics_interface::{Vertex, GraphicsInterface}, graphics::texture::Texture};
 
 pub struct Draw
@@ -72,7 +69,7 @@ impl Draw
         let mut model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
         model_matrix = model_matrix * Matrix4::from_angle_z(Rad(rotation));
 
-        let finan_matrix = self.graphics_interface.world_matrix * self.camera_matrix * model_matrix;
+        let finan_matrix = self.camera_matrix * self.graphics_interface.world_matrix  * model_matrix;
 
         let vertex_1 =  finan_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
         let vertex_2 =  finan_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
