@@ -6,4 +6,5 @@ pub mod window;
 pub mod platform;
 pub mod graphics;
 pub mod rectangle;
+pub mod animation;
 pub use crate::game::Game;

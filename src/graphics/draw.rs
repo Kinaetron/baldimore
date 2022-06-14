@@ -80,10 +80,10 @@ impl Draw
         let top_tex_coord = 1.0 - draw_area.top / (texture.height as f32);
         let bottom_tex_coord = 1.0 - draw_area.bottom / (texture.height as f32);
 
-        vertices.push(Vertex { position: [ vertex_1.x, vertex_1.y, vertex_1.z, vertex_1.w ], tex_coords: [left_tex_coord,  bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom left
-        vertices.push(Vertex { position: [ vertex_2.x, vertex_2.y, vertex_2.z, vertex_2.w ], tex_coords: [left_tex_coord,     top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top left
-        vertices.push(Vertex { position: [ vertex_3.x, vertex_3.y, vertex_3.z, vertex_3.w ], tex_coords: [right_tex_coord,    top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top right
-        vertices.push(Vertex { position: [ vertex_4.x, vertex_4.y, vertex_4.z, vertex_4.w ], tex_coords: [right_tex_coord, bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom right
+        vertices.push(Vertex { position: [ vertex_1.x, vertex_1.y], tex_coords: [left_tex_coord,  bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom left
+        vertices.push(Vertex { position: [ vertex_2.x, vertex_2.y], tex_coords: [left_tex_coord,     top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top left
+        vertices.push(Vertex { position: [ vertex_3.x, vertex_3.y], tex_coords: [right_tex_coord,    top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top right
+        vertices.push(Vertex { position: [ vertex_4.x, vertex_4.y], tex_coords: [right_tex_coord, bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom right
 
         let batch_information = DrawInformation::new(texture, vertices, indices);
         self.batch_information_vec.push(batch_information);
