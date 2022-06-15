@@ -147,10 +147,7 @@ impl GraphicsInterface
             entry_point: "fs_main",
             targets: &[wgpu::ColorTargetState {
                 format: config.format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
-                }),
+                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                 write_mask: wgpu::ColorWrites::ALL,
             }],
         }),
