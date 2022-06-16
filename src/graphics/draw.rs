@@ -68,12 +68,12 @@ impl Draw
         let mut model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
         model_matrix = model_matrix * Matrix4::from_angle_z(Rad(rotation));
 
-        let finan_matrix = self.camera_matrix * self.graphics_interface.world_matrix  * model_matrix;
+        let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
 
-        let vertex_1 =  finan_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
-        let vertex_2 =  finan_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_3 =  finan_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_4 =  finan_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let vertex_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let vertex_2 =  final_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
 
         let left_tex_coord = draw_area.left / (texture.width as f32);
         let right_tex_coord = draw_area.right / (texture.width as f32);
@@ -96,6 +96,8 @@ impl Draw
         }
 
         self.graphics_interface.batch_render(&self.batch_information_vec);
+
+        
         self.batch_information_vec.clear();
         self.batch_began = false;
     }

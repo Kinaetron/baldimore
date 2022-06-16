@@ -1,7 +1,7 @@
 use crate::game::Game;
+use std::time::Instant;
 use crate::input::Input;
 use system_sdl::SDLSystem;
-use spin_sleep::LoopHelper;
 use crate::platform::system_sdl;
 use crate::graphics::draw::Draw;
 use crate::input::{ gamepad::Gamepad, keyboard::Keyboard, mouse::Mouse };
@@ -25,7 +25,6 @@ impl Window
                 panic!("couldn't create graphics interface for window, error message: {}", e) 
             }
         };
-
         Self { sdl2_system, graphics_interface }
     }
 }
@@ -33,34 +32,40 @@ impl Window
 
 pub fn run(mut window: Window, mut game: impl Game) -> Result<(), String>
 {
-    let mut loop_helper = LoopHelper::builder()
-        .report_interval_s(0.5)
-        .build_with_target_rate(60.5);
-
-
     let mut sprite_batch = Draw::new(window.graphics_interface);
 
+    let mouse = Mouse::new();
     let gamepad = Gamepad::new();
     let keyboard = Keyboard::new();
-    let mouse = Mouse::new();
 
     let mut input = Input::new(mouse, gamepad, keyboard);
 
+
+    let mut accumulator = 0.0;
+    let timer = Instant::now();
+    let mut previous_time = timer.elapsed().as_secs_f64();
+
     while input.keyboard.is_running
     {
-        loop_helper.loop_start();
+        let current_time = timer.elapsed().as_secs_f64();
+        let elapsed_time = current_time - previous_time;
+        previous_time = current_time;
+        accumulator += elapsed_time;
 
         for event in window.sdl2_system.event_pump.poll_iter() {
             input.poll(&window.sdl2_system.game_controller_subsystem, &event);
         }
 
         game.process_input(&mut input);
-        game.update();
+
+        while accumulator >= 1.0 / 60.0
+        {
+            game.update();
+            accumulator -= 1.0 / 60.0;
+        }
+
         game.draw(&mut sprite_batch);
-
         input.clear();
-
-        loop_helper.loop_sleep();
     }
 
     Ok(())
