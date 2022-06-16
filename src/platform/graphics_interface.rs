@@ -1,6 +1,7 @@
 use std::iter;
 use crate::math;
 use cgmath::{Matrix4};
+use log::warn;
 use wgpu::util::DeviceExt;
 use crate::platform::system_sdl::SDLSystem;
 use crate::graphics::draw::DrawInformation;
@@ -180,12 +181,17 @@ impl GraphicsInterface
 
     pub fn batch_render(& mut self, batch_information_vec: &Vec<DrawInformation>)
     { 
-        // I should probably move this, it's a quick fix for the minimizing issue
-        self.surface.configure(&self.device, &self.config);
+        match self.internal_batch_render(batch_information_vec) {
+            Ok(_) => {}
+            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => self.surface.configure(&self.device, &self.config),
+            Err(wgpu::SurfaceError::OutOfMemory) => panic!("System has run out of memory"),
+            Err(wgpu::SurfaceError::Timeout) => warn!("Surface timeout"),
+        }
+    }
 
-        let output = self.surface.get_current_texture().unwrap();
-
-
+    fn internal_batch_render(& mut self, batch_information_vec: &Vec<DrawInformation>) -> Result<(), wgpu::SurfaceError>
+    {
+        let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -258,5 +264,8 @@ impl GraphicsInterface
 
         self.queue.submit(iter::once(encoder.finish()));  
         output.present(); 
+
+        Ok(())
     }
+
 }
