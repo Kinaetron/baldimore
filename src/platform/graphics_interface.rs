@@ -58,7 +58,7 @@ impl GraphicsInterface
 {
     pub fn new(sdl2_system: &SDLSystem) -> Result<Self, String>
     {
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let instance = wgpu::Instance::new(wgpu::Backends::DX12);
         let surface = unsafe { instance.create_surface(&sdl2_system.window) };
 
         let (width, height) = sdl2_system.window.size();
