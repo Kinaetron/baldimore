@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{sync::Arc};
+use image::{Rgba, RgbaImage};
+use imageproc::drawing::*;
+use imageproc::rect::Rect;
 use crate::{graphics::colour::Colour, rectangle::Rectangle};
 use cgmath::{Rad, Vector2, Vector3, Vector4, Matrix4, SquareMatrix};
 use crate::{ platform::graphics_interface::{Vertex, GraphicsInterface}, graphics::texture::Texture};
@@ -87,6 +90,36 @@ impl Draw
 
         let batch_information = DrawInformation::new(texture, vertices, indices);
         self.batch_information_vec.push(batch_information);
+    }
+
+    pub fn rectangle(&mut self, position: Vector2<f32>, size: Vector2<u32>, colour: Colour)
+    {
+        let rectangle = Rect::at(0, 0).of_size(size.x, size.y);
+        let color = Rgba([colour.red as u8, colour.green as u8, colour.blue as u8, colour.alpha as u8]);
+
+        let image_buffer = RgbaImage::new(size.x, size.y);
+        let result = draw_hollow_rect(&image_buffer, rectangle, color);
+        
+        let new_size = Vector2 { x: size.x as f32 , y: size.y as f32 };
+        let draw_area = Rectangle::new(0.0, 0.0, size.x as f32 , size.y as f32);
+        let texture = Arc::new(Texture::new_from_buffer(&self.graphics_interface, result, size));
+
+        self.sprite(Arc::clone(&texture), position, draw_area, new_size, 0.0, colour)
+    }
+
+    pub fn circle(&mut self, position: Vector2<f32>, radius: u32, colour: Colour)
+    {
+        let length = radius * 3;
+        let color = Rgba([colour.red as u8, colour.green as u8, colour.blue as u8, colour.alpha as u8]);
+
+        let image_buffer = RgbaImage::new(length, length);
+        let result = draw_hollow_circle(&image_buffer, ((length / 2) as i32,  (length / 2) as i32), radius as i32, color);
+
+        let new_size = Vector2 { x: length as f32 , y: length as f32 };
+        let draw_area = Rectangle::new(0.0, 0.0, length as f32 , length as f32);
+        let texture = Arc::new(Texture::new_from_buffer(&self.graphics_interface, result, Vector2 { x: length, y: length }));
+
+        self.sprite(Arc::clone(&texture), position, draw_area, new_size, 0.0, colour)
     }
 
     pub fn end(&mut self)
