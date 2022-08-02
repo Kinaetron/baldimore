@@ -1,14 +1,14 @@
 use std::fs;
 use std::path::Path;
-use cgmath::Vector2;
+use cgmath::Vector2; 
 use std::num::NonZeroU32;
 use image::{GenericImageView, ImageBuffer, Rgba};
-
 use crate::platform::graphics_interface::GraphicsInterface;
 
 
 pub struct Texture
 {
+    pub id: u64,
     pub width: u32,
     pub height: u32,
     pub texture: wgpu::Texture,
@@ -18,6 +18,7 @@ pub struct Texture
 
 impl Texture 
 {
+
     pub fn new_from_buffer(graphics_interface: &GraphicsInterface, buffer: ImageBuffer<Rgba<u8>, Vec<u8>>, dimensions: Vector2<u32>) -> Self
     {
         let size = wgpu::Extent3d {
@@ -63,7 +64,7 @@ impl Texture
             ..Default::default()
         });
 
-        Self { width: dimensions.x, height: dimensions.y, texture, view, sampler }
+        Self { id: rand::random::<u64>(), width: dimensions.x, height: dimensions.y, texture, view, sampler }
     }
 
 
@@ -121,7 +122,7 @@ impl Texture
             ..Default::default()
         });
 
-        Self { width: dimensions.0, height: dimensions.1 , texture, view, sampler }
+        Self { id: rand::random::<u64>(), width: dimensions.0, height: dimensions.1 , texture, view, sampler }
     }
 
 

@@ -1,31 +1,33 @@
-use std::{sync::Arc};
-use image::{Rgba, RgbaImage};
 use imageproc::drawing::*;
 use imageproc::rect::Rect;
+use image::{Rgba, RgbaImage};
+use std::{sync::Arc, collections::HashMap};
 use crate::{graphics::colour::Colour, rectangle::Rectangle};
 use cgmath::{Rad, Vector2, Vector3, Vector4, Matrix4, SquareMatrix};
 use crate::{ platform::graphics_interface::{Vertex, GraphicsInterface}, graphics::texture::Texture};
 
 pub struct Draw
 {
+    indices: [u16; 6],
     batch_began: bool,
+    texture_index: u32,
     camera_matrix: Matrix4<f32>,
+    texture_vec: Vec<Arc<Texture>>,
+    texture_hashmap: HashMap<u64, u32>,
     pub graphics_interface: GraphicsInterface,
-    batch_information_vec: Vec<DrawInformation>
+    batch_information_hashmap: HashMap<u32, DrawInformation>
 }
-
 
 pub struct DrawInformation
 {
     pub indices: Vec<u16>,
-    pub texture: Arc<Texture>,
     pub vertices: Vec<Vertex>,
 }
 
 impl DrawInformation
 {
-    pub fn new(texture: Arc<Texture>, vertices: Vec<Vertex>, indices: Vec<u16>) -> Self {
-        Self { texture, indices, vertices }
+    pub fn new(vertices: Vec<Vertex>, indices: Vec<u16>) -> Self {
+        Self { indices, vertices }
     }
 }
 
@@ -33,10 +35,13 @@ impl Draw
 {
     pub fn new(graphics_interface: GraphicsInterface) -> Self 
     {
+        let indices = [0, 1, 3, 1 ,2 ,3 ];
         let camera_matrix = Matrix4::identity();
-        let batch_information_vec: Vec<DrawInformation> = Vec::new();
+        let texture_hashmap: HashMap<u64, u32> = HashMap::new();
+        let texture_vec: Vec<Arc<Texture>> = Vec::with_capacity(16);
+        let batch_information_hashmap: HashMap<u32, DrawInformation> = HashMap::new();
 
-        Self { batch_began: false, graphics_interface, batch_information_vec, camera_matrix }
+        Self { indices, batch_began: false, texture_index: 0, texture_vec, texture_hashmap, graphics_interface, batch_information_hashmap, camera_matrix }
     }
 
     pub fn clear(&mut self, colour: Colour) 
@@ -59,9 +64,6 @@ impl Draw
         if !self.batch_began {
             panic!("You can't call begin twice in a row");
         }
-        
-        let mut vertices: Vec<Vertex>  = Vec::new();
-        let indices = vec![0, 1, 3, 1 ,2 ,3 ];
 
         let color = colour.converted_to_color();
 
@@ -73,23 +75,63 @@ impl Draw
 
         let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
 
-        let vertex_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
-        let vertex_2 =  final_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_2 =  final_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
 
         let left_tex_coord = draw_area.left / (texture.width as f32);
         let right_tex_coord = draw_area.right / (texture.width as f32);
         let top_tex_coord = 1.0 - draw_area.top / (texture.height as f32);
         let bottom_tex_coord = 1.0 - draw_area.bottom / (texture.height as f32);
 
-        vertices.push(Vertex { position: [ vertex_1.x, vertex_1.y], tex_coords: [left_tex_coord,  bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom left
-        vertices.push(Vertex { position: [ vertex_2.x, vertex_2.y], tex_coords: [left_tex_coord,     top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top left
-        vertices.push(Vertex { position: [ vertex_3.x, vertex_3.y], tex_coords: [right_tex_coord,    top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top right
-        vertices.push(Vertex { position: [ vertex_4.x, vertex_4.y], tex_coords: [right_tex_coord, bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom right
+        let vertex_1 = Vertex { position: [ vertex_position_1.x, vertex_position_2.y], tex_coords: [left_tex_coord,  bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
+        let vertex_2 = Vertex { position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,   top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
+        let vertex_3 = Vertex { position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,    top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
+        let vertex_4 = Vertex { position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord, bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] };  // bottom right        
 
-        let batch_information = DrawInformation::new(texture, vertices, indices);
-        self.batch_information_vec.push(batch_information);
+        let index = self.texture_hashmap.get(&texture.id);
+
+        if index == None
+        {
+            if self.texture_index > 15
+            {
+                self.graphics_interface.batch_render(&self.batch_information_vec);        
+                self.batch_information_hashmap.clear();
+            }
+
+            self.texture_index += 1;
+            self.texture_vec.push(texture);
+            self.texture_hashmap.insert(texture.id, self.texture_index);
+
+            let mut vertices: Vec<Vertex>  = Vec::new();
+            vertices.push(vertex_1);
+            vertices.push(vertex_2);
+            vertices.push(vertex_3);
+            vertices.push(vertex_4);
+
+            let mut indices: Vec<u16> = Vec::new();
+            indices.extend_from_slice(&self.indices);
+
+            let batch_information = DrawInformation::new(vertices, indices);
+            self.batch_information_hashmap.insert(self.texture_index, batch_information);
+        }
+        else
+        {
+           match self.batch_information_hashmap.get(index.unwrap())
+           {
+                Some(draw_information) => 
+                { 
+                    draw_information.vertices.push(vertex_1);
+                    draw_information.vertices.push(vertex_2);
+                    draw_information.vertices.push(vertex_3);
+                    draw_information.vertices.push(vertex_4);
+
+                    draw_information.indices.extend_from_slice(&self.indices);
+                }
+                None => { panic!("Draw doesn't have vertex information for texture {}", texture.id) }
+           }
+        }
     }
 
     pub fn rectangle(&mut self, position: Vector2<f32>, size: Vector2<u32>, colour: Colour)
@@ -131,7 +173,7 @@ impl Draw
         self.graphics_interface.batch_render(&self.batch_information_vec);
 
         
-        self.batch_information_vec.clear();
+        self.batch_information_hashmap.clear();
         self.batch_began = false;
     }
 }
