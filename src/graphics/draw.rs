@@ -128,6 +128,8 @@ impl Draw
                     draw_information.indices.push(draw_information.indices[indice_index + 1] + 4);
                     draw_information.indices.push(draw_information.indices[indice_index + 2] + 4);
                     draw_information.indices.push(draw_information.indices[indice_index + 3] + 4);
+                    draw_information.indices.push(draw_information.indices[indice_index + 4] + 4);
+                    draw_information.indices.push(draw_information.indices[indice_index + 5] + 4);
                 }
                 None => { panic!("Draw doesn't have vertex information for texture {}", texture.id) }
            }
