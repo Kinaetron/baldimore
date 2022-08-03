@@ -79,8 +79,8 @@ impl GraphicsInterface
         let (device, queue) = match pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor 
             {
-                limits: wgpu::Limits::default(),
                 label: Some("device"),
+                limits: wgpu::Limits::default(),
                 features: wgpu::Features::empty(),
             },
             None,

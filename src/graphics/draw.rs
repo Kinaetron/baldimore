@@ -8,7 +8,6 @@ use crate::{ platform::graphics_interface::{Vertex, GraphicsInterface}, graphics
 
 pub struct Draw
 {
-    indices: [u16; 6],
     batch_began: bool,
     texture_index: u32,
     camera_matrix: Matrix4<f32>,
@@ -35,13 +34,12 @@ impl Draw
 {
     pub fn new(graphics_interface: GraphicsInterface) -> Self 
     {
-        let indices = [0, 1, 3, 1 ,2 ,3 ];
         let camera_matrix = Matrix4::identity();
         let texture_hashmap: HashMap<u64, u32> = HashMap::new();
         let texture_vec: Vec<Arc<Texture>> = Vec::with_capacity(16);
         let batch_information_hashmap: HashMap<u32, DrawInformation> = HashMap::new();
 
-        Self { indices, batch_began: false, texture_index: 0, texture_vec, texture_hashmap, graphics_interface, batch_information_hashmap, camera_matrix }
+        Self { batch_began: false, texture_index: 0, texture_vec, texture_hashmap, graphics_interface, batch_information_hashmap, camera_matrix }
     }
 
     pub fn clear(&mut self, colour: Colour) 
@@ -85,10 +83,10 @@ impl Draw
         let top_tex_coord = 1.0 - draw_area.top / (texture.height as f32);
         let bottom_tex_coord = 1.0 - draw_area.bottom / (texture.height as f32);
 
-        let vertex_1 = Vertex { position: [ vertex_position_1.x, vertex_position_2.y], tex_coords: [left_tex_coord,  bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
-        let vertex_2 = Vertex { position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,   top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
-        let vertex_3 = Vertex { position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,    top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
-        let vertex_4 = Vertex { position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord, bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] };  // bottom right        
+        let vertex_1 = Vertex { position: [ vertex_position_1.x, vertex_position_2.y], tex_coords: [left_tex_coord,    bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
+        let vertex_2 = Vertex { position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,       top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
+        let vertex_3 = Vertex { position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,      top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
+        let vertex_4 = Vertex { position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord,   bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] };  // bottom right        
 
         let index = self.texture_hashmap.get(&texture.id);
 
@@ -110,10 +108,7 @@ impl Draw
             vertices.push(vertex_3);
             vertices.push(vertex_4);
 
-            let mut indices: Vec<u16> = Vec::new();
-            indices.extend_from_slice(&self.indices);
-
-            let batch_information = DrawInformation::new(vertices, indices);
+            let batch_information = DrawInformation::new(vertices, vec![0, 1, 3, 1 ,2 ,3 ]);
             self.batch_information_hashmap.insert(self.texture_index, batch_information);
         }
         else
@@ -127,7 +122,12 @@ impl Draw
                     draw_information.vertices.push(vertex_3);
                     draw_information.vertices.push(vertex_4);
 
-                    draw_information.indices.extend_from_slice(&self.indices);
+                    let indice_index = draw_information.indices.len() - 7;
+
+                    draw_information.indices.push(draw_information.indices[indice_index] + 4);
+                    draw_information.indices.push(draw_information.indices[indice_index + 1] + 4);
+                    draw_information.indices.push(draw_information.indices[indice_index + 2] + 4);
+                    draw_information.indices.push(draw_information.indices[indice_index + 3] + 4);
                 }
                 None => { panic!("Draw doesn't have vertex information for texture {}", texture.id) }
            }
