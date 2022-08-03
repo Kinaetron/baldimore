@@ -17,38 +17,6 @@ pub struct Vertex {
     pub color: [f32; 4]
 }
 
-impl Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<f32>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 2,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 5]>() as wgpu::BufferAddress,
-                    shader_location: 3,
-                    format: wgpu::VertexFormat::Float32x4,
-                }
-            ],
-        }
-    }
-}
-
 pub struct GraphicsInterface
 {
     pub queue: wgpu::Queue,
@@ -93,7 +61,7 @@ impl GraphicsInterface
             {
                 label: Some("device"),
                 limits: wgpu::Limits::default(),
-                features:  wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING
+                features:  wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING | wgpu::Features::TEXTURE_BINDING_ARRAY
             },
             None,
         )) {
@@ -128,13 +96,13 @@ impl GraphicsInterface
                         view_dimension: wgpu::TextureViewDimension::D2,
                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
                     },
-                    count: NonZeroU32::new(16),
+                    count: NonZeroU32::new(2),
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: NonZeroU32::new(16),
+                    count: NonZeroU32::new(2),
                 },
             ],
         label: Some("texture_bind_group_layout"),
@@ -153,7 +121,11 @@ impl GraphicsInterface
         vertex: wgpu::VertexState {
             module: &shader,
             entry_point: "vs_main",
-            buffers: &[Vertex::desc()],
+            buffers: &[wgpu::VertexBufferLayout {
+                array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+                step_mode: wgpu::VertexStepMode::Vertex,
+                attributes: &wgpu::vertex_attr_array![0 => Sint32, 1 => Float32x2, 2 => Float32x2, 3 => Float32x4],
+            }],
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader,
@@ -231,19 +203,13 @@ impl GraphicsInterface
                 wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::TextureViewArray(&[
-                        &textures[0].view, &textures[1].view, &textures[2].view, &textures[3].view,
-                        &textures[4].view, &textures[5].view, &textures[6].view, &textures[7].view,
-                        &textures[8].view, &textures[9].view, &textures[10].view, &textures[11].view,
-                        &textures[12].view, &textures[13].view, &textures[14].view, &textures[15].view,
+                        &textures[0].view, &textures[1].view
                     ]),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::SamplerArray(&[
-                        &textures[0].sampler, &textures[1].sampler, &textures[2].sampler, &textures[3].sampler,
-                        &textures[4].sampler, &textures[5].sampler, &textures[6].sampler, &textures[7].sampler,
-                        &textures[8].sampler, &textures[9].sampler, &textures[10].sampler, &textures[11].sampler,
-                        &textures[12].sampler, &textures[13].sampler, &textures[14].sampler, &textures[15].sampler,
+                        &textures[0].sampler, &textures[1].sampler
                         ]),
                 }
             ],

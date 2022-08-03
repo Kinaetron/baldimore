@@ -94,7 +94,10 @@ impl Draw
         {
             if self.texture_index > 15
             {
-                self.graphics_interface.batch_render(&self.texture_vec, &self.batch_information_hashmap);        
+                self.graphics_interface.batch_render(&self.texture_vec, &self.batch_information_hashmap);
+
+                self.texture_index = 0;
+                self.texture_hashmap.clear();        
                 self.batch_information_hashmap.clear();
             }
 
@@ -174,7 +177,9 @@ impl Draw
 
          self.graphics_interface.batch_render(&self.texture_vec, &self.batch_information_hashmap);
 
-        self.batch_information_hashmap.clear();
+        self.texture_index = 0;
         self.batch_began = false;
+        self.texture_hashmap.clear();
+        self.batch_information_hashmap.clear();
     }
 }

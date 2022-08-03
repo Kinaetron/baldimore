@@ -1,6 +1,6 @@
 // Vertex shader
 struct VertexInput {
-    @location(0) index: f32,
+    @location(0) index: i32,
     @location(1) position: vec2<f32>,
     @location(2) tex_coords: vec2<f32>,
     @location(3) color: vec4<f32>
@@ -9,7 +9,7 @@ struct VertexInput {
 struct VertexOutput 
 {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) index: f32,
+    @location(0) index: i32,
     @location(1) tex_coords: vec2<f32>,
     @location(2) color: vec4<f32>
 };
