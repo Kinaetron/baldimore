@@ -4,7 +4,7 @@ use image::{Rgba, RgbaImage};
 use std::{sync::Arc, collections::HashMap};
 use crate::{graphics::colour::Colour, rectangle::Rectangle};
 use cgmath::{Rad, Vector2, Vector3, Vector4, Matrix4, SquareMatrix};
-use crate::{ platform::graphics_interface::{Vertex, GraphicsInterface}, graphics::texture::Texture};
+use crate::{platform::graphics_interface::{Vertex, GraphicsInterface}, graphics::texture::Texture};
 
 pub struct Draw
 {
@@ -83,10 +83,10 @@ impl Draw
         let top_tex_coord = 1.0 - draw_area.top / (texture.height as f32);
         let bottom_tex_coord = 1.0 - draw_area.bottom / (texture.height as f32);
 
-        let vertex_1 = Vertex { position: [ vertex_position_1.x, vertex_position_2.y], tex_coords: [left_tex_coord,    bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
-        let vertex_2 = Vertex { position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,       top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
-        let vertex_3 = Vertex { position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,      top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
-        let vertex_4 = Vertex { position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord,   bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] };  // bottom right        
+        let vertex_1 = Vertex { index: self.texture_index, position: [ vertex_position_1.x, vertex_position_2.y], tex_coords: [left_tex_coord,    bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
+        let vertex_2 = Vertex { index: self.texture_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,       top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
+        let vertex_3 = Vertex { index: self.texture_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,      top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
+        let vertex_4 = Vertex { index: self.texture_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord,   bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right        
 
         let index = self.texture_hashmap.get(&texture.id);
 
@@ -94,13 +94,13 @@ impl Draw
         {
             if self.texture_index > 15
             {
-                self.graphics_interface.batch_render(&self.batch_information_vec);        
+                self.graphics_interface.batch_render(&self.texture_vec, &self.batch_information_hashmap);        
                 self.batch_information_hashmap.clear();
             }
 
             self.texture_index += 1;
-            self.texture_vec.push(texture);
             self.texture_hashmap.insert(texture.id, self.texture_index);
+            self.texture_vec.push(texture);
 
             let mut vertices: Vec<Vertex>  = Vec::new();
             vertices.push(vertex_1);
@@ -113,7 +113,7 @@ impl Draw
         }
         else
         {
-           match self.batch_information_hashmap.get(index.unwrap())
+           match self.batch_information_hashmap.get_mut(index.unwrap())
            {
                 Some(draw_information) => 
                 { 
@@ -172,9 +172,8 @@ impl Draw
             panic!("You can't call end if without calling begin first");
         }
 
-        self.graphics_interface.batch_render(&self.batch_information_vec);
+         self.graphics_interface.batch_render(&self.texture_vec, &self.batch_information_hashmap);
 
-        
         self.batch_information_hashmap.clear();
         self.batch_began = false;
     }

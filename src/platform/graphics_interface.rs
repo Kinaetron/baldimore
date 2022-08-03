@@ -1,15 +1,17 @@
-use std::iter;
-use crate::math;
-use cgmath::{Matrix4};
 use log::warn;
 use wgpu::util::DeviceExt;
+use crate::math;
+use cgmath::{Matrix4};
+use std::num::NonZeroU32;
 use crate::platform::system_sdl::SDLSystem;
-use crate::graphics::draw::DrawInformation;
+use std::{iter, sync::Arc, collections::HashMap};
+use crate::{graphics::draw::DrawInformation, graphics::texture::Texture};
 
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
+    pub index: u32,
     pub position: [f32; 2],
     pub tex_coords: [f32; 2],
     pub color: [f32; 4]
@@ -25,16 +27,21 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x2,
+                    format: wgpu::VertexFormat::Float32,
                 },
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<f32>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2,
                 },
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 5]>() as wgpu::BufferAddress,
+                    shader_location: 3,
                     format: wgpu::VertexFormat::Float32x4,
                 }
             ],
@@ -75,13 +82,18 @@ impl GraphicsInterface
             Some(a) => a,
             None => return Err(String::from("No adapter found")),
         };
-        
+
+        let adapter_features = adapter.features();
+        if !adapter_features.contains(wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING) {
+            panic!("Sampled Texture and Storage Buffer Array Non Uniform Indexing isn't supported !");
+        }
+
         let (device, queue) = match pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor 
             {
                 label: Some("device"),
                 limits: wgpu::Limits::default(),
-                features: wgpu::Features::empty(),
+                features:  wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING
             },
             None,
         )) {
@@ -116,13 +128,13 @@ impl GraphicsInterface
                         view_dimension: wgpu::TextureViewDimension::D2,
                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
                     },
-                    count: None,
+                    count: NonZeroU32::new(16),
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
+                    count: NonZeroU32::new(16),
                 },
             ],
         label: Some("texture_bind_group_layout"),
@@ -171,6 +183,8 @@ impl GraphicsInterface
     });
         let clear_color = wgpu::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
         let world_matrix = math::ortho(0.0, width as f32, height as f32, 0.0, -1.0, 1.0);
+
+      
         
         Ok(Self{ surface, device, queue, config, texture_bind_group_layout, render_pipeline, clear_color, world_matrix })
     }
@@ -179,9 +193,9 @@ impl GraphicsInterface
         self.clear_color = wgpu::Color { r: red, g: green, b: blue, a: alpha };
     }
 
-    pub fn batch_render(& mut self, batch_information_vec: &Vec<DrawInformation>)
+    pub fn batch_render(& mut self, textures: &Vec<Arc<Texture>>,  batch_information_hashmap: &HashMap<u32, DrawInformation>)
     { 
-        match self.internal_batch_render(batch_information_vec) {
+        match self.internal_batch_render(textures, batch_information_hashmap) {
             Ok(_) => {}
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => self.surface.configure(&self.device, &self.config),
             Err(wgpu::SurfaceError::OutOfMemory) => panic!("System has run out of memory"),
@@ -189,7 +203,7 @@ impl GraphicsInterface
         }
     }
 
-    fn internal_batch_render(& mut self, batch_information_vec: &Vec<DrawInformation>) -> Result<(), wgpu::SurfaceError>
+    fn internal_batch_render(& mut self, textures: &Vec<Arc<Texture>>,  batch_information_hashmap: &HashMap<u32, DrawInformation>) -> Result<(), wgpu::SurfaceError>
     {
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -210,33 +224,45 @@ impl GraphicsInterface
             })],
             depth_stencil_attachment: None,
         });
+        
 
-        for batch_information in batch_information_vec
+        let texture_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureViewArray(&[
+                        &textures[0].view, &textures[1].view, &textures[2].view, &textures[3].view,
+                        &textures[4].view, &textures[5].view, &textures[6].view, &textures[7].view,
+                        &textures[8].view, &textures[9].view, &textures[10].view, &textures[11].view,
+                        &textures[12].view, &textures[13].view, &textures[14].view, &textures[15].view,
+                    ]),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::SamplerArray(&[
+                        &textures[0].sampler, &textures[1].sampler, &textures[2].sampler, &textures[3].sampler,
+                        &textures[4].sampler, &textures[5].sampler, &textures[6].sampler, &textures[7].sampler,
+                        &textures[8].sampler, &textures[9].sampler, &textures[10].sampler, &textures[11].sampler,
+                        &textures[12].sampler, &textures[13].sampler, &textures[14].sampler, &textures[15].sampler,
+                        ]),
+                }
+            ],
+            layout: &self.texture_bind_group_layout,
+            label: Some("texture bind group"),
+        });
+        
+
+        for draw_information in batch_information_hashmap
         {
-            let texture_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &self.texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&batch_information.texture.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&batch_information.texture.sampler),
-                    },
-                ],
-                label: Some("texture_bind_group"),
-            });
-
             let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&batch_information.vertices),
+                contents: bytemuck::cast_slice(&draw_information.1.vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
             let index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&batch_information.indices),
+                contents: bytemuck::cast_slice(&draw_information.1.indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
 
@@ -258,9 +284,10 @@ impl GraphicsInterface
                 render_pass.set_bind_group(0, &texture_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                 render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..batch_information.indices.len() as u32, 0, 0..1);
+                render_pass.draw_indexed(0..draw_information.1.indices.len() as u32, 0, 0..1);
             }
         }
+
 
         self.queue.submit(iter::once(encoder.finish()));  
         output.present(); 
