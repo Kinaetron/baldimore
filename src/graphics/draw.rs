@@ -8,38 +8,33 @@ use crate::{platform::graphics_interface::{Vertex, GraphicsInterface}, graphics:
 
 pub struct Draw
 {
+    draw_count: u16,
+    indices: Vec<u16>,
     batch_began: bool,
     texture_index: u32,
+    vertices: Vec<Vertex>,
+    dummy_texture: Arc<Texture>,
     camera_matrix: Matrix4<f32>,
     texture_vec: Vec<Arc<Texture>>,
     texture_hashmap: HashMap<u64, u32>,
     pub graphics_interface: GraphicsInterface,
-    batch_information_hashmap: HashMap<u32, DrawInformation>
-}
-
-pub struct DrawInformation
-{
-    pub indices: Vec<u16>,
-    pub vertices: Vec<Vertex>,
-}
-
-impl DrawInformation
-{
-    pub fn new(vertices: Vec<Vertex>, indices: Vec<u16>) -> Self {
-        Self { indices, vertices }
-    }
 }
 
 impl Draw
 {
     pub fn new(graphics_interface: GraphicsInterface) -> Self 
     {
+
+        let indices: Vec<u16> = Vec::new();
+        let vertices: Vec<Vertex> = Vec::new();
         let camera_matrix = Matrix4::identity();
         let texture_hashmap: HashMap<u64, u32> = HashMap::new();
         let texture_vec: Vec<Arc<Texture>> = Vec::with_capacity(16);
-        let batch_information_hashmap: HashMap<u32, DrawInformation> = HashMap::new();
 
-        Self { batch_began: false, texture_index: 0, texture_vec, texture_hashmap, graphics_interface, batch_information_hashmap, camera_matrix }
+        let image_buffer = RgbaImage::new(1, 1);
+        let dummy_texture =Arc::new(Texture::new_from_buffer(&graphics_interface, image_buffer, Vector2 { x: 1, y: 1 }));
+
+        Self { draw_count: 0, indices, batch_began: false, dummy_texture, texture_index: 0, texture_vec, texture_hashmap, graphics_interface, vertices, camera_matrix }
     }
 
     pub fn clear(&mut self, colour: Colour) 
@@ -57,7 +52,7 @@ impl Draw
         self.camera_matrix = camera_matrix;
     }
 
-    pub fn sprite(&mut self, texture: Arc<Texture>, position: Vector2<f32>, draw_area: Rectangle, size: Vector2<f32>, rotation: f32,  colour: Colour)
+    pub fn sprite(&mut self, texture: Arc<Texture>, position: Vector2<f32>, draw_area: &Rectangle, size: Vector2<f32>, rotation: f32,  colour: Colour)
     {
         if !self.batch_began {
             panic!("You can't call begin twice in a row");
@@ -83,60 +78,50 @@ impl Draw
         let top_tex_coord = 1.0 - draw_area.top / (texture.height as f32);
         let bottom_tex_coord = 1.0 - draw_area.bottom / (texture.height as f32);
 
-        let vertex_1 = Vertex { index: self.texture_index, position: [ vertex_position_1.x, vertex_position_2.y], tex_coords: [left_tex_coord,    bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
-        let vertex_2 = Vertex { index: self.texture_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,       top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
-        let vertex_3 = Vertex { index: self.texture_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,      top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
-        let vertex_4 = Vertex { index: self.texture_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord,   bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right        
+        let mut vertex_1 = Vertex { index: self.texture_index, position: [ vertex_position_1.x, vertex_position_1.y], tex_coords: [left_tex_coord,    bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
+        let mut vertex_2 = Vertex { index: self.texture_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,       top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
+        let mut vertex_3 = Vertex { index: self.texture_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,      top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
+        let mut vertex_4 = Vertex { index: self.texture_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord,   bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right        
 
-        let index = self.texture_hashmap.get(&texture.id);
-
-        if index == None
+        match self.texture_hashmap.get(&texture.id)
         {
-            if self.texture_index > 15
+            Some(index) => 
             {
-                self.graphics_interface.batch_render(&self.texture_vec, &self.batch_information_hashmap);
-
-                self.texture_index = 0;
-                self.texture_hashmap.clear();        
-                self.batch_information_hashmap.clear();
-            }
-
-            self.texture_index += 1;
-            self.texture_hashmap.insert(texture.id, self.texture_index);
-            self.texture_vec.push(texture);
-
-            let mut vertices: Vec<Vertex>  = Vec::new();
-            vertices.push(vertex_1);
-            vertices.push(vertex_2);
-            vertices.push(vertex_3);
-            vertices.push(vertex_4);
-
-            let batch_information = DrawInformation::new(vertices, vec![0, 1, 3, 1 ,2 ,3 ]);
-            self.batch_information_hashmap.insert(self.texture_index, batch_information);
-        }
-        else
-        {
-           match self.batch_information_hashmap.get_mut(index.unwrap())
-           {
-                Some(draw_information) => 
-                { 
-                    draw_information.vertices.push(vertex_1);
-                    draw_information.vertices.push(vertex_2);
-                    draw_information.vertices.push(vertex_3);
-                    draw_information.vertices.push(vertex_4);
-
-                    let indice_index = draw_information.indices.len() - 7;
-
-                    draw_information.indices.push(draw_information.indices[indice_index] + 4);
-                    draw_information.indices.push(draw_information.indices[indice_index + 1] + 4);
-                    draw_information.indices.push(draw_information.indices[indice_index + 2] + 4);
-                    draw_information.indices.push(draw_information.indices[indice_index + 3] + 4);
-                    draw_information.indices.push(draw_information.indices[indice_index + 4] + 4);
-                    draw_information.indices.push(draw_information.indices[indice_index + 5] + 4);
+               let index_value = *index;
+                
+                if index_value > 15 {
+                    self.end();
                 }
-                None => { panic!("Draw doesn't have vertex information for texture {}", texture.id) }
-           }
+
+               vertex_1.index = index_value;
+               vertex_2.index = index_value;
+               vertex_3.index = index_value;
+               vertex_4.index = index_value;
+            }
+            None =>
+            { 
+                self.texture_hashmap.insert(texture.id, self.texture_index);
+                self.texture_vec.push(texture);
+                self.texture_index += 1;
+            }
         }
+
+        self.vertices.push(vertex_1);
+        self.vertices.push(vertex_2);
+        self.vertices.push(vertex_3);
+        self.vertices.push(vertex_4);
+
+        let index_offset = 4 * self.draw_count;
+
+        self.indices.push(0 + index_offset);
+        self.indices.push(1 + index_offset);
+        self.indices.push(3 + index_offset);
+        self.indices.push(1 + index_offset);
+        self.indices.push(2 + index_offset);
+        self.indices.push(3 + index_offset);
+
+        self.draw_count += 1;
+
     }
 
     pub fn rectangle(&mut self, position: Vector2<f32>, size: Vector2<u32>, colour: Colour)
@@ -151,7 +136,7 @@ impl Draw
         let draw_area = Rectangle::new(0.0, 0.0, size.x as f32 , size.y as f32);
         let texture = Arc::new(Texture::new_from_buffer(&self.graphics_interface, result, size));
 
-        self.sprite(Arc::clone(&texture), position, draw_area, new_size, 0.0, colour)
+        self.sprite(Arc::clone(&texture), position, &draw_area, new_size, 0.0, colour)
     }
 
     pub fn circle(&mut self, position: Vector2<f32>, radius: u32, colour: Colour)
@@ -166,7 +151,7 @@ impl Draw
         let draw_area = Rectangle::new(0.0, 0.0, length as f32 , length as f32);
         let texture = Arc::new(Texture::new_from_buffer(&self.graphics_interface, result, Vector2 { x: length, y: length }));
 
-        self.sprite(Arc::clone(&texture), position, draw_area, new_size, 0.0, colour)
+        self.sprite(Arc::clone(&texture), position, &draw_area, new_size, 0.0, colour)
     }
 
     pub fn end(&mut self)
@@ -175,11 +160,27 @@ impl Draw
             panic!("You can't call end if without calling begin first");
         }
 
-         self.graphics_interface.batch_render(&self.texture_vec, &self.batch_information_hashmap);
+        let mut x = 0;
+        let count = 16 - self.texture_index;
 
+        while x < count
+        {
+            self.texture_vec.push(self.dummy_texture.clone());
+            x += 1;
+        }
+
+        self.graphics_interface.batch_render(&self.texture_vec, &self.vertices, &self.indices);
+        self.flush();
+    }
+
+    fn flush(& mut self)
+    {
+        self.draw_count = 0;
+        self.indices.clear();
+        self.vertices.clear();
         self.texture_index = 0;
+        self.texture_vec.clear();
         self.batch_began = false;
         self.texture_hashmap.clear();
-        self.batch_information_hashmap.clear();
     }
 }
