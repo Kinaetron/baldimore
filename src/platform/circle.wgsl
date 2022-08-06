@@ -26,6 +26,14 @@ fn vs_main(in: VertexInput) -> VertexOutput
 @fragment
 fn fs_main(in: VertexOutput) ->  @location(0) vec4<f32> 
 {
-    var color = vec4<f32>(in.uv.x, in.uv.y, 0.0, 0.0);
-    return color;
+    var fade = 0.005;
+    var thickness = 0.005;
+    var uv = in.uv * 2.0 - 1.0;
+
+    var distance = 1.0 - length(uv);
+    var alpha = smoothstep(0.0, fade, distance);
+    alpha *= smoothstep(thickness + fade, thickness, distance);
+
+
+    return vec4<f32>(in.color.xyz, alpha);
 }
