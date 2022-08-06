@@ -15,13 +15,13 @@ struct VertexOutput
 };
 
 @vertex
-fn vs_main(model: VertexInput) -> VertexOutput 
+fn vs_main(in: VertexInput) -> VertexOutput 
 {
     var out: VertexOutput;
-    out.index = model.index;
-    out.tex_coords = model.tex_coords;
-    out.clip_position = vec4<f32>(model.position, 0.0, 1.0);
-    out.color = model.color;
+    out.index = in.index;
+    out.tex_coords = in.tex_coords;
+    out.clip_position = vec4<f32>(in.position, 0.0, 1.0);
+    out.color = in.color;
     return out;
 }
 

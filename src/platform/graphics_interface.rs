@@ -1,20 +1,39 @@
 use log::warn;
-use wgpu::{util::DeviceExt, Sampler, TextureView};
 use crate::math;
-use cgmath::{Matrix4};
+use cgmath::Matrix4;
 use std::num::NonZeroU32;
-use crate::platform::system_sdl::SDLSystem;
 use std::{iter, sync::Arc};
-use crate::{graphics::texture::Texture};
+use crate::graphics::texture::Texture;
+use crate::platform::system_sdl::SDLSystem;
+use wgpu::{util::DeviceExt, Sampler, TextureView};
+
 
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
+pub struct SpriteVertex 
+{
     pub index: u32,
     pub position: [f32; 2],
     pub tex_coords: [f32; 2],
     pub color: [f32; 4]
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct  RectangleVertex
+{
+    pub position: [f32; 2],
+    pub color: [f32; 4],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct  CircleVertex
+{
+    pub position: [f32; 2],
+    pub uv: [f32; 2],
+    pub color: [f32; 4],
 }
 
 pub struct GraphicsInterface
@@ -25,7 +44,9 @@ pub struct GraphicsInterface
     pub world_matrix: Matrix4<f32>,
     pub config: wgpu::SurfaceConfiguration,
     texture_bind_group_layout: wgpu::BindGroupLayout,
-    render_pipeline: wgpu::RenderPipeline,
+    sprite_render_pipeline: wgpu::RenderPipeline,
+    rectangle_render_pipeline: wgpu::RenderPipeline,
+    circle_render_pipeline: wgpu::RenderPipeline,
     clear_color: wgpu::Color,
 }
 
@@ -40,7 +61,7 @@ impl GraphicsInterface
 
         let adapter_opt = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions 
         {
-            power_preference: wgpu::PowerPreference::HighPerformance,
+            power_preference: wgpu::PowerPreference::default(),
             compatible_surface: Some(&surface),
             force_fallback_adapter: false,
         }));
@@ -61,12 +82,16 @@ impl GraphicsInterface
             return Err(String::from("Sampled Texture and Storage Buffer Array Non Uniform Indexing isn't supported !"));
         }
 
+        if ! adapter_features.contains(wgpu::Features::POLYGON_MODE_LINE) {
+            return Err(String::from("Polygon mode line isn't supported !"));
+        }
+
         let (device, queue) = match pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor 
             {
                 label: Some("device"),
                 limits: wgpu::Limits::default(),
-                features:  wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING | wgpu::Features::TEXTURE_BINDING_ARRAY
+                features:  wgpu::Features::SAMPLED_TEXTURE_AND_STORAGE_BUFFER_ARRAY_NON_UNIFORM_INDEXING | wgpu::Features::TEXTURE_BINDING_ARRAY | wgpu::Features::POLYGON_MODE_LINE
             },
             None,
         )) {
@@ -85,9 +110,9 @@ impl GraphicsInterface
 
         surface.configure(&device, &config);
             
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        let sprite_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Sprite Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("sprite.wgsl").into()),
         });
         
         let texture_bind_group_layout =
@@ -114,27 +139,129 @@ impl GraphicsInterface
         });
        
 
-        let render_pipeline_layout =
+        let sprite_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
+                label: Some("Sprite Render Pipeline Layout"),
                 bind_group_layouts: &[&texture_bind_group_layout],
                 push_constant_ranges: &[],
         });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
+        let sprite_render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Sprite Render Pipeline"),
+            layout: Some(&sprite_render_pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &shader,
+                module: &sprite_shader,
                 entry_point: "vs_main",
                 buffers: &[wgpu::VertexBufferLayout {
-                    array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+                    array_stride: std::mem::size_of::<SpriteVertex>() as wgpu::BufferAddress,
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![0 => Sint32, 1 => Float32x2, 2 => Float32x2, 3 => Float32x4],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
-                module: &shader,
+                module: &sprite_shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+        });
+
+        let rectangle_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Rectangle Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("rectangle.wgsl").into()),
+        });
+
+        let rectangle_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Rectangle Render Pipeline Layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+        });
+
+        let rectangle_render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Rectangle Render Pipeline"),
+            layout: Some(&rectangle_render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &rectangle_shader,
+                entry_point: "vs_main",
+                buffers: &[wgpu::VertexBufferLayout {
+                    array_stride: std::mem::size_of::<RectangleVertex>() as wgpu::BufferAddress,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x4],
+                }],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &rectangle_shader,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::LineList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Line,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+        });
+
+        let circle_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Circle Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("circle.wgsl").into()),
+        });
+
+        let circle_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Circle Render Pipeline Layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+        });
+
+        let circle_render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Circle Render Pipeline"),
+            layout: Some(&circle_render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &circle_shader,
+                entry_point: "vs_main",
+                buffers: &[wgpu::VertexBufferLayout {
+                    array_stride: std::mem::size_of::<CircleVertex>() as wgpu::BufferAddress,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Float32x4],
+                }],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &circle_shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
@@ -163,16 +290,21 @@ impl GraphicsInterface
         let clear_color = wgpu::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
         let world_matrix = math::ortho(0.0, width as f32, height as f32, 0.0, -1.0, 1.0);
         
-        Ok(Self{ surface, device, queue, config, texture_bind_group_layout, render_pipeline, clear_color, world_matrix })
+        Ok(Self{ surface, device, queue, config, texture_bind_group_layout, sprite_render_pipeline, rectangle_render_pipeline, circle_render_pipeline, clear_color, world_matrix })
     }
 
     pub fn clear(&mut self, red : f64, green: f64, blue: f64, alpha: f64) {
         self.clear_color = wgpu::Color { r: red, g: green, b: blue, a: alpha };
     }
 
-    pub fn batch_render(& mut self, textures: &Vec<Arc<Texture>>, vertices: &Vec<Vertex>, indices: &Vec<u16>)
+    pub fn batch_render(& mut self, textures: &Vec<Arc<Texture>>, vertices: &Vec<SpriteVertex>, indices: &Vec<u16>, 
+                        rectangle_vertices: &Vec<RectangleVertex>, rectangle_indices: &Vec<u16>,
+                        circle_vertices: &Vec<CircleVertex>, circle_indices: &Vec<u16>)
     { 
-        match self.internal_batch_render(textures, vertices, indices) {
+        match self.internal_batch_render(textures, vertices, indices, 
+                                         rectangle_vertices, rectangle_indices, 
+                                         circle_vertices, circle_indices) 
+        {
             Ok(_) => {}
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => self.surface.configure(&self.device, &self.config),
             Err(wgpu::SurfaceError::OutOfMemory) => panic!("System has run out of memory"),
@@ -180,7 +312,9 @@ impl GraphicsInterface
         }
     }
 
-    fn internal_batch_render(& mut self, textures: &Vec<Arc<Texture>>,  vertices: &Vec<Vertex>, indices: &Vec<u16>) -> Result<(), wgpu::SurfaceError>
+    fn internal_batch_render(& mut self, textures: &Vec<Arc<Texture>>,  sprite_vertices: &Vec<SpriteVertex>, sprite_indices: &Vec<u16>, 
+                              rectangle_vertices: &Vec<RectangleVertex>, rectangle_indices: &Vec<u16>,
+                              circle_vertices: &Vec<CircleVertex>, circle_indices: &Vec<u16>) -> Result<(), wgpu::SurfaceError>
     {
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -228,15 +362,39 @@ impl GraphicsInterface
             label: Some("texture bind group"),
         });
         
-        let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let sprite_vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertices),
+            contents: bytemuck::cast_slice(&sprite_vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let sprite_index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&indices),
+            contents: bytemuck::cast_slice(&sprite_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let rectangle_vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&rectangle_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let rectangle_index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(&rectangle_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let circle_vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&circle_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let circle_index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(&circle_indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -254,11 +412,21 @@ impl GraphicsInterface
                 depth_stencil_attachment: None,
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_pipeline(&self.sprite_render_pipeline);
             render_pass.set_bind_group(0, &texture_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+            render_pass.set_vertex_buffer(0, sprite_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(sprite_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..sprite_indices.len() as u32, 0, 0..1);
+
+            render_pass.set_pipeline(&self.rectangle_render_pipeline);
+            render_pass.set_vertex_buffer(0, rectangle_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(rectangle_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..rectangle_indices.len() as u32, 0, 0..1);
+
+            render_pass.set_pipeline(&self.circle_render_pipeline);
+            render_pass.set_vertex_buffer(0, circle_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(circle_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..circle_indices.len() as u32, 0, 0..1);
         }
 
         self.queue.submit(iter::once(encoder.finish()));  
