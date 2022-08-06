@@ -1,42 +1,66 @@
-use std::{sync::Arc};
-use image::{Rgba, RgbaImage};
-use imageproc::drawing::*;
-use imageproc::rect::Rect;
+use image::RgbaImage;
+use std::{sync::Arc, collections::HashMap};
 use crate::{graphics::colour::Colour, rectangle::Rectangle};
 use cgmath::{Rad, Vector2, Vector3, Vector4, Matrix4, SquareMatrix};
-use crate::{ platform::graphics_interface::{Vertex, GraphicsInterface}, graphics::texture::Texture};
+use crate::{platform::graphics_interface::{SpriteVertex, RectangleVertex, CircleVertex, GraphicsInterface}, graphics::texture::Texture};
 
 pub struct Draw
 {
+    sprite_draw_count: u16,
+    rectangle_draw_count: u16,
+    circle_draw_count: u16,
     batch_began: bool,
+    texture_index: u32,
+    sprite_indices: Vec<u16>,
+    sprite_vertices: Vec<SpriteVertex>,
+    rectangle_indices: Vec<u16>,
+    rectangle_vertices: Vec<RectangleVertex>,
+    circle_indices: Vec<u16>,
+    circle_vertices: Vec<CircleVertex>,
+    dummy_texture: Arc<Texture>,
     camera_matrix: Matrix4<f32>,
+    texture_vec: Vec<Arc<Texture>>,
+    texture_hashmap: HashMap<u64, u32>,
     pub graphics_interface: GraphicsInterface,
-    batch_information_vec: Vec<DrawInformation>
-}
-
-
-pub struct DrawInformation
-{
-    pub indices: Vec<u16>,
-    pub texture: Arc<Texture>,
-    pub vertices: Vec<Vertex>,
-}
-
-impl DrawInformation
-{
-    pub fn new(texture: Arc<Texture>, vertices: Vec<Vertex>, indices: Vec<u16>) -> Self {
-        Self { texture, indices, vertices }
-    }
 }
 
 impl Draw
 {
     pub fn new(graphics_interface: GraphicsInterface) -> Self 
     {
-        let camera_matrix = Matrix4::identity();
-        let batch_information_vec: Vec<DrawInformation> = Vec::new();
 
-        Self { batch_began: false, graphics_interface, batch_information_vec, camera_matrix }
+        let sprite_indices: Vec<u16> = Vec::new();
+        let sprite_vertices: Vec<SpriteVertex> = Vec::new();
+        let rectangle_indices: Vec<u16> = Vec::new();
+        let rectangle_vertices: Vec<RectangleVertex> = Vec::new();
+        let circle_indices: Vec<u16> = Vec::new();
+        let circle_vertices: Vec<CircleVertex> = Vec::new();
+        let camera_matrix = Matrix4::identity();
+        let texture_hashmap: HashMap<u64, u32> = HashMap::new();
+        let texture_vec: Vec<Arc<Texture>> = Vec::with_capacity(16);
+
+        let image_buffer = RgbaImage::new(1, 1);
+        let dummy_texture =Arc::new(Texture::new_from_buffer(&graphics_interface, image_buffer, Vector2 { x: 1, y: 1 }));
+
+        Self 
+        { 
+            sprite_draw_count: 0,
+            rectangle_draw_count: 0, 
+            circle_draw_count: 0,
+            sprite_indices, 
+            batch_began: false,
+            dummy_texture, 
+            texture_index: 0, 
+            texture_vec, 
+            texture_hashmap, 
+            graphics_interface, 
+            sprite_vertices, 
+            camera_matrix, 
+            rectangle_indices,
+            rectangle_vertices,
+            circle_indices,
+            circle_vertices
+        }
     }
 
     pub fn clear(&mut self, colour: Colour) 
@@ -54,14 +78,11 @@ impl Draw
         self.camera_matrix = camera_matrix;
     }
 
-    pub fn sprite(&mut self, texture: Arc<Texture>, position: Vector2<f32>, draw_area: Rectangle, size: Vector2<f32>, rotation: f32,  colour: Colour)
+    pub fn sprite(&mut self, texture: Arc<Texture>, position: Vector2<f32>, draw_area: &Rectangle, size: Vector2<f32>, rotation: f32,  colour: Colour)
     {
         if !self.batch_began {
             panic!("You can't call begin twice in a row");
         }
-        
-        let mut vertices: Vec<Vertex>  = Vec::new();
-        let indices = vec![0, 1, 3, 1 ,2 ,3 ];
 
         let color = colour.converted_to_color();
 
@@ -73,53 +94,149 @@ impl Draw
 
         let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
 
-        let vertex_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
-        let vertex_2 =  final_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_2 =  final_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
 
         let left_tex_coord = draw_area.left / (texture.width as f32);
         let right_tex_coord = draw_area.right / (texture.width as f32);
         let top_tex_coord = 1.0 - draw_area.top / (texture.height as f32);
         let bottom_tex_coord = 1.0 - draw_area.bottom / (texture.height as f32);
 
-        vertices.push(Vertex { position: [ vertex_1.x, vertex_1.y], tex_coords: [left_tex_coord,  bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom left
-        vertices.push(Vertex { position: [ vertex_2.x, vertex_2.y], tex_coords: [left_tex_coord,     top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top left
-        vertices.push(Vertex { position: [ vertex_3.x, vertex_3.y], tex_coords: [right_tex_coord,    top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // top right
-        vertices.push(Vertex { position: [ vertex_4.x, vertex_4.y], tex_coords: [right_tex_coord, bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }); // bottom right
+        let mut vertex_1 = SpriteVertex { index: self.texture_index, position: [ vertex_position_1.x, vertex_position_1.y], tex_coords: [left_tex_coord,    bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
+        let mut vertex_2 = SpriteVertex { index: self.texture_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,       top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
+        let mut vertex_3 = SpriteVertex { index: self.texture_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,      top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
+        let mut vertex_4 = SpriteVertex { index: self.texture_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord,   bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right        
 
-        let batch_information = DrawInformation::new(texture, vertices, indices);
-        self.batch_information_vec.push(batch_information);
+        match self.texture_hashmap.get(&texture.id)
+        {
+            Some(index) => 
+            {
+               let index_value = *index;
+                
+                if index_value > 15 {
+                    self.end();
+                }
+
+               vertex_1.index = index_value;
+               vertex_2.index = index_value;
+               vertex_3.index = index_value;
+               vertex_4.index = index_value;
+            }
+            None =>
+            { 
+                self.texture_hashmap.insert(texture.id, self.texture_index);
+                self.texture_vec.push(texture);
+                self.texture_index += 1;
+            }
+        }
+
+        self.sprite_vertices.push(vertex_1);
+        self.sprite_vertices.push(vertex_2);
+        self.sprite_vertices.push(vertex_3);
+        self.sprite_vertices.push(vertex_4);
+
+        let index_offset = 4 * self.sprite_draw_count;
+
+        self.sprite_indices.push(0 + index_offset);
+        self.sprite_indices.push(1 + index_offset);
+        self.sprite_indices.push(3 + index_offset);
+        self.sprite_indices.push(1 + index_offset);
+        self.sprite_indices.push(2 + index_offset);
+        self.sprite_indices.push(3 + index_offset);
+
+        self.sprite_draw_count += 1;
+
     }
 
     pub fn rectangle(&mut self, position: Vector2<f32>, size: Vector2<u32>, colour: Colour)
     {
-        let rectangle = Rect::at(0, 0).of_size(size.x, size.y);
-        let color = Rgba([colour.red as u8, colour.green as u8, colour.blue as u8, colour.alpha as u8]);
+        if !self.batch_began {
+            panic!("You can't call begin twice in a row");
+        }
 
-        let image_buffer = RgbaImage::new(size.x, size.y);
-        let result = draw_hollow_rect(&image_buffer, rectangle, color);
+        let color = colour.converted_to_color();
+
+        let origin_x = size.x as f32 / 2.0;
+        let origin_y = size.y as f32 / 2.0;
+
+        let model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
+
+        let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
+
+        let vertex_position_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_2 =  final_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+
+        let vertex_1 = RectangleVertex { position: [ vertex_position_1.x, vertex_position_1.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
+        let vertex_2 = RectangleVertex { position: [ vertex_position_2.x, vertex_position_2.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
+        let vertex_3 = RectangleVertex { position: [ vertex_position_3.x, vertex_position_3.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
+        let vertex_4 = RectangleVertex { position: [ vertex_position_4.x, vertex_position_4.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right
         
-        let new_size = Vector2 { x: size.x as f32 , y: size.y as f32 };
-        let draw_area = Rectangle::new(0.0, 0.0, size.x as f32 , size.y as f32);
-        let texture = Arc::new(Texture::new_from_buffer(&self.graphics_interface, result, size));
+        self.rectangle_vertices.push(vertex_1);
+        self.rectangle_vertices.push(vertex_2);
+        self.rectangle_vertices.push(vertex_3);
+        self.rectangle_vertices.push(vertex_4);
 
-        self.sprite(Arc::clone(&texture), position, draw_area, new_size, 0.0, colour)
+        let index_offset = 4 * self.rectangle_draw_count;
+
+        self.rectangle_indices.push(0 + index_offset);
+        self.rectangle_indices.push(1 + index_offset);
+        self.rectangle_indices.push(1 + index_offset);
+        self.rectangle_indices.push(2 + index_offset);
+        self.rectangle_indices.push(2 + index_offset);
+        self.rectangle_indices.push(3 + index_offset);
+        self.rectangle_indices.push(3 + index_offset);
+        self.rectangle_indices.push(0 + index_offset);
+
+        self.rectangle_draw_count += 1;
     }
 
     pub fn circle(&mut self, position: Vector2<f32>, radius: u32, colour: Colour)
     {
-        let length = radius * 3;
-        let color = Rgba([colour.red as u8, colour.green as u8, colour.blue as u8, colour.alpha as u8]);
+        if !self.batch_began {
+            panic!("You can't call begin twice in a row");
+        }
 
-        let image_buffer = RgbaImage::new(length, length);
-        let result = draw_hollow_circle(&image_buffer, ((length / 2) as i32,  (length / 2) as i32), radius as i32, color);
+        let color = colour.converted_to_color();
 
-        let new_size = Vector2 { x: length as f32 , y: length as f32 };
-        let draw_area = Rectangle::new(0.0, 0.0, length as f32 , length as f32);
-        let texture = Arc::new(Texture::new_from_buffer(&self.graphics_interface, result, Vector2 { x: length, y: length }));
+        let size = radius * 2;
 
-        self.sprite(Arc::clone(&texture), position, draw_area, new_size, 0.0, colour)
+        let origin_x = size as f32 / 2.0;
+        let origin_y = size as f32 / 2.0;
+
+        let model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
+
+        let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
+
+        let vertex_position_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_2 =  final_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+        let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+
+        let vertex_1 = CircleVertex { position: [ vertex_position_1.x, vertex_position_1.y], uv: [0.0, 1.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
+        let vertex_2 = CircleVertex { position: [ vertex_position_2.x, vertex_position_2.y], uv: [0.0, 0.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
+        let vertex_3 = CircleVertex { position: [ vertex_position_3.x, vertex_position_3.y], uv: [1.0, 0.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
+        let vertex_4 = CircleVertex { position: [ vertex_position_4.x, vertex_position_4.y], uv: [1.0, 1.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right
+
+        self.circle_vertices.push(vertex_1);
+        self.circle_vertices.push(vertex_2);
+        self.circle_vertices.push(vertex_3);
+        self.circle_vertices.push(vertex_4);
+
+        let index_offset = 4 * self.circle_draw_count;
+
+        self.circle_indices.push(0 + index_offset);
+        self.circle_indices.push(1 + index_offset);
+        self.circle_indices.push(3 + index_offset);
+        self.circle_indices.push(1 + index_offset);
+        self.circle_indices.push(2 + index_offset);
+        self.circle_indices.push(3 + index_offset);
+
+        self.circle_draw_count += 1;
+
     }
 
     pub fn end(&mut self)
@@ -128,10 +245,35 @@ impl Draw
             panic!("You can't call end if without calling begin first");
         }
 
-        self.graphics_interface.batch_render(&self.batch_information_vec);
+        let mut x = 0;
+        let count = 16 - self.texture_index;
 
-        
-        self.batch_information_vec.clear();
+        while x < count
+        {
+            self.texture_vec.push(self.dummy_texture.clone());
+            x += 1;
+        }
+
+        self.graphics_interface.batch_render(&self.texture_vec, &self.sprite_vertices, &self.sprite_indices, 
+                                                       &self.rectangle_vertices, &self.rectangle_indices,
+                                                       &self.circle_vertices, &self.circle_indices);
+        self.flush();
+    }
+
+    fn flush(& mut self)
+    {
+        self.circle_draw_count = 0;
+        self.sprite_draw_count = 0;
+        self.rectangle_draw_count = 0;
+        self.circle_vertices.clear();
+        self.circle_indices.clear();
+        self.rectangle_vertices.clear();
+        self.rectangle_indices.clear();
+        self.sprite_vertices.clear();
+        self.sprite_indices.clear();
+        self.texture_index = 0;
+        self.texture_vec.clear();
         self.batch_began = false;
+        self.texture_hashmap.clear();
     }
 }

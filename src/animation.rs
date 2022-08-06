@@ -45,6 +45,6 @@ impl Animation
     pub fn draw(&mut self, position: Vector2<f32>, rotation: f32, colour: Colour, draw: &mut Draw)
     {
         let draw_area = Rectangle::new(self.frame as f32 * self.cell_size.x, self.column as f32, self.cell_size.x, self.cell_size.y);
-        draw.sprite(Arc::clone(&self.texture), position, draw_area, self.cell_size, rotation, colour);
+        draw.sprite(Arc::clone(&self.texture), position, &draw_area, self.cell_size, rotation, colour);
     }
 }
