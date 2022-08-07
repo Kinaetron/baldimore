@@ -1,8 +1,8 @@
 use image::RgbaImage;
-use std::{sync::Arc, collections::HashMap};
+use std::{sync::Arc, collections::HashMap, f32::consts::PI};
 use crate::{graphics::colour::Colour, rectangle::Rectangle};
 use cgmath::{Rad, Vector2, Vector3, Vector4, Matrix4, SquareMatrix};
-use crate::{platform::graphics_interface::{SpriteVertex, RectangleVertex, CircleVertex, GraphicsInterface}, graphics::texture::Texture};
+use crate::{platform::graphics_interface::{SpriteVertex, ShapeVertex, GraphicsInterface}, graphics::texture::Texture};
 
 pub struct Draw
 {
@@ -14,9 +14,9 @@ pub struct Draw
     sprite_indices: Vec<u16>,
     sprite_vertices: Vec<SpriteVertex>,
     rectangle_indices: Vec<u16>,
-    rectangle_vertices: Vec<RectangleVertex>,
+    rectangle_vertices: Vec<ShapeVertex>,
     circle_indices: Vec<u16>,
-    circle_vertices: Vec<CircleVertex>,
+    circle_vertices: Vec<ShapeVertex>,
     dummy_texture: Arc<Texture>,
     camera_matrix: Matrix4<f32>,
     texture_vec: Vec<Arc<Texture>>,
@@ -32,9 +32,9 @@ impl Draw
         let sprite_indices: Vec<u16> = Vec::new();
         let sprite_vertices: Vec<SpriteVertex> = Vec::new();
         let rectangle_indices: Vec<u16> = Vec::new();
-        let rectangle_vertices: Vec<RectangleVertex> = Vec::new();
+        let rectangle_vertices: Vec<ShapeVertex> = Vec::new();
         let circle_indices: Vec<u16> = Vec::new();
-        let circle_vertices: Vec<CircleVertex> = Vec::new();
+        let circle_vertices: Vec<ShapeVertex> = Vec::new();
         let camera_matrix = Matrix4::identity();
         let texture_hashmap: HashMap<u64, u32> = HashMap::new();
         let texture_vec: Vec<Arc<Texture>> = Vec::with_capacity(16);
@@ -170,10 +170,10 @@ impl Draw
         let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
         let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
 
-        let vertex_1 = RectangleVertex { position: [ vertex_position_1.x, vertex_position_1.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
-        let vertex_2 = RectangleVertex { position: [ vertex_position_2.x, vertex_position_2.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
-        let vertex_3 = RectangleVertex { position: [ vertex_position_3.x, vertex_position_3.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
-        let vertex_4 = RectangleVertex { position: [ vertex_position_4.x, vertex_position_4.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right
+        let vertex_1 = ShapeVertex { position: [ vertex_position_1.x, vertex_position_1.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
+        let vertex_2 = ShapeVertex { position: [ vertex_position_2.x, vertex_position_2.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
+        let vertex_3 = ShapeVertex { position: [ vertex_position_3.x, vertex_position_3.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
+        let vertex_4 = ShapeVertex { position: [ vertex_position_4.x, vertex_position_4.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right
         
         self.rectangle_vertices.push(vertex_1);
         self.rectangle_vertices.push(vertex_2);
@@ -194,49 +194,42 @@ impl Draw
         self.rectangle_draw_count += 1;
     }
 
-    pub fn circle(&mut self, position: Vector2<f32>, radius: u32, colour: Colour)
+    pub fn circle(&mut self, position: Vector2<f32>, radius: f32, colour: Colour)
     {
         if !self.batch_began {
             panic!("You can't call begin twice in a row");
         }
-
         let color = colour.converted_to_color();
 
-        let size = radius * 2;
-
-        let origin_x = size as f32 / 2.0;
-        let origin_y = size as f32 / 2.0;
-
         let model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
-
         let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
 
-        let vertex_position_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
-        let vertex_position_2 =  final_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
-        let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+        let mut vertex_index:f32 = 0.0;
 
-        let vertex_1 = CircleVertex { position: [ vertex_position_1.x, vertex_position_1.y], uv: [0.0, 1.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
-        let vertex_2 = CircleVertex { position: [ vertex_position_2.x, vertex_position_2.y], uv: [0.0, 0.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
-        let vertex_3 = CircleVertex { position: [ vertex_position_3.x, vertex_position_3.y], uv: [1.0, 0.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
-        let vertex_4 = CircleVertex { position: [ vertex_position_4.x, vertex_position_4.y], uv: [1.0, 1.0], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right
+        while vertex_index < 33.0
+        {
+            let vertex_position = final_matrix * Vector4 { x: ((vertex_index * (PI / 16.0))).cos() * radius, y: ((vertex_index * (PI / 16.0))).sin() * radius, z: 0.0, w: 1.0 };
+            let vertex = ShapeVertex { position: [ vertex_position.x, vertex_position.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] };
 
-        self.circle_vertices.push(vertex_1);
-        self.circle_vertices.push(vertex_2);
-        self.circle_vertices.push(vertex_3);
-        self.circle_vertices.push(vertex_4);
+            self.circle_vertices.push(vertex);
+            vertex_index += 1.0;
+        }
 
-        let index_offset = 4 * self.circle_draw_count;
+        let mut index = 0;
+        let index_offset = 33 * self.circle_draw_count;
 
+        while index < 32
+        {
+            self.circle_indices.push(index + index_offset);
+            self.circle_indices.push((index + 1) + index_offset);
+
+            index += 1;
+        }
+
+        self.circle_indices.push(32 + index_offset);
         self.circle_indices.push(0 + index_offset);
-        self.circle_indices.push(1 + index_offset);
-        self.circle_indices.push(3 + index_offset);
-        self.circle_indices.push(1 + index_offset);
-        self.circle_indices.push(2 + index_offset);
-        self.circle_indices.push(3 + index_offset);
 
         self.circle_draw_count += 1;
-
     }
 
     pub fn end(&mut self)

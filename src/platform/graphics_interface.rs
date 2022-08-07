@@ -20,20 +20,12 @@ pub struct SpriteVertex
     pub color: [f32; 4]
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct  RectangleVertex
-{
-    pub position: [f32; 2],
-    pub color: [f32; 4],
-}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct  CircleVertex
+pub struct  ShapeVertex
 {
     pub position: [f32; 2],
-    pub uv: [f32; 2],
     pub color: [f32; 4],
 }
 
@@ -186,9 +178,9 @@ impl GraphicsInterface
             multiview: None,
         });
 
-        let rectangle_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let shape_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Rectangle Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("rectangle.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shape.wgsl").into()),
         });
 
         let rectangle_render_pipeline_layout =
@@ -202,16 +194,16 @@ impl GraphicsInterface
             label: Some("Rectangle Render Pipeline"),
             layout: Some(&rectangle_render_pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &rectangle_shader,
+                module: &shape_shader,
                 entry_point: "vs_main",
                 buffers: &[wgpu::VertexBufferLayout {
-                    array_stride: std::mem::size_of::<RectangleVertex>() as wgpu::BufferAddress,
+                    array_stride: std::mem::size_of::<ShapeVertex>() as wgpu::BufferAddress,
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x4],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
-                module: &rectangle_shader,
+                module: &shape_shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
@@ -237,11 +229,6 @@ impl GraphicsInterface
             multiview: None,
         });
 
-        let circle_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Circle Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("circle.wgsl").into()),
-        });
-
         let circle_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Circle Render Pipeline Layout"),
@@ -253,16 +240,16 @@ impl GraphicsInterface
             label: Some("Circle Render Pipeline"),
             layout: Some(&circle_render_pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &circle_shader,
+                module: &shape_shader,
                 entry_point: "vs_main",
                 buffers: &[wgpu::VertexBufferLayout {
-                    array_stride: std::mem::size_of::<CircleVertex>() as wgpu::BufferAddress,
+                    array_stride: std::mem::size_of::<ShapeVertex>() as wgpu::BufferAddress,
                     step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Float32x4],
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x4],
                 }],
             },
             fragment: Some(wgpu::FragmentState {
-                module: &circle_shader,
+                module: &shape_shader,
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
@@ -271,11 +258,11 @@ impl GraphicsInterface
                 })],
             }),
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology: wgpu::PrimitiveTopology::LineList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
+                polygon_mode: wgpu::PolygonMode::Line,
                 unclipped_depth: false,
                 conservative: false,
             },
@@ -299,8 +286,8 @@ impl GraphicsInterface
     }
 
     pub fn batch_render(& mut self, textures: &Vec<Arc<Texture>>, vertices: &Vec<SpriteVertex>, indices: &Vec<u16>, 
-                        rectangle_vertices: &Vec<RectangleVertex>, rectangle_indices: &Vec<u16>,
-                        circle_vertices: &Vec<CircleVertex>, circle_indices: &Vec<u16>)
+                        rectangle_vertices: &Vec<ShapeVertex>, rectangle_indices: &Vec<u16>,
+                        circle_vertices: &Vec<ShapeVertex>, circle_indices: &Vec<u16>)
     { 
         match self.internal_batch_render(textures, vertices, indices, 
                                          rectangle_vertices, rectangle_indices, 
@@ -314,8 +301,8 @@ impl GraphicsInterface
     }
 
     fn internal_batch_render(& mut self, textures: &Vec<Arc<Texture>>,  sprite_vertices: &Vec<SpriteVertex>, sprite_indices: &Vec<u16>, 
-                              rectangle_vertices: &Vec<RectangleVertex>, rectangle_indices: &Vec<u16>,
-                              circle_vertices: &Vec<CircleVertex>, circle_indices: &Vec<u16>) -> Result<(), wgpu::SurfaceError>
+                              rectangle_vertices: &Vec<ShapeVertex>, rectangle_indices: &Vec<u16>,
+                              circle_vertices: &Vec<ShapeVertex>, circle_indices: &Vec<u16>) -> Result<(), wgpu::SurfaceError>
     {
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -418,7 +405,7 @@ impl GraphicsInterface
         } 
     }
 
-    fn rectangle_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder, vertices: &Vec<RectangleVertex>, indices: &Vec<u16>)
+    fn rectangle_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder, vertices: &Vec<ShapeVertex>, indices: &Vec<u16>)
     {
 
         let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -455,7 +442,7 @@ impl GraphicsInterface
         } 
     }
 
-    fn circle_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder, vertices: &Vec<CircleVertex>, indices: &Vec<u16>)
+    fn circle_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder, vertices: &Vec<ShapeVertex>, indices: &Vec<u16>)
     {
 
         let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
