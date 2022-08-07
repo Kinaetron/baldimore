@@ -288,7 +288,7 @@ impl GraphicsInterface
             multiview: None,
         });
 
-        let clear_color = wgpu::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+        let clear_color = wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
         let world_matrix = math::ortho(0.0, width as f32, height as f32, 0.0, -1.0, 1.0);
         
         Ok(Self{ surface, device, queue, config, texture_bind_group_layout, sprite_render_pipeline, rectangle_render_pipeline, circle_render_pipeline, clear_color, world_matrix })

@@ -1,4 +1,4 @@
-const COLOR_RANGE: u16 = 255;
+const COLOR_RANGE: f64 = 255.0;
 
 pub struct Colour
 {
@@ -24,10 +24,10 @@ impl Colour
 
     pub fn converted_to_color(&self) -> Color
     {
-        let r = (self.red / COLOR_RANGE) as f64;
-        let g = (self.green / COLOR_RANGE) as f64;
-        let b = (self.blue / COLOR_RANGE) as f64;
-        let a = (self.alpha / COLOR_RANGE) as f64;
+        let r = f64::powf(self.red as f64   / COLOR_RANGE, 2.2);
+        let g = f64::powf(self.green as f64 / COLOR_RANGE, 2.2);
+        let b = f64::powf(self.blue as f64  / COLOR_RANGE, 2.2);
+        let a = f64::powf(self.alpha as f64 / COLOR_RANGE, 2.2);
 
         Color { r, g, b, a }
     }
