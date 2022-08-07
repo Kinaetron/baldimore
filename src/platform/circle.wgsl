@@ -26,8 +26,8 @@ fn vs_main(in: VertexInput) -> VertexOutput
 @fragment
 fn fs_main(in: VertexOutput) ->  @location(0) vec4<f32> 
 {
-    var fade = 0.005;
-    var thickness = 0.005;
+    var fade = 0.060;
+    var thickness = 0.002;
     var uv = in.uv * 2.0 - 1.0;
 
     var distance = 1.0 - length(uv);

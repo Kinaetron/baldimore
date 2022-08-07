@@ -1,4 +1,5 @@
 use log::warn;
+use wgpu::CommandEncoder;
 use crate::math;
 use cgmath::Matrix4;
 use std::num::NonZeroU32;
@@ -287,7 +288,7 @@ impl GraphicsInterface
             multiview: None,
         });
 
-        let clear_color = wgpu::Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
+        let clear_color = wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 };
         let world_matrix = math::ortho(0.0, width as f32, height as f32, 0.0, -1.0, 1.0);
         
         Ok(Self{ surface, device, queue, config, texture_bind_group_layout, sprite_render_pipeline, rectangle_render_pipeline, circle_render_pipeline, clear_color, world_matrix })
@@ -336,6 +337,27 @@ impl GraphicsInterface
             depth_stencil_attachment: None,
         });
 
+        if sprite_vertices.len() > 0 {
+            self.sprite_renderpass(&view, &mut encoder, textures, sprite_vertices, sprite_indices);
+        }
+
+        if rectangle_vertices.len() > 0 {
+            self.rectangle_renderpass(&view, &mut encoder, rectangle_vertices, rectangle_indices);
+        }
+
+        if circle_vertices.len() > 0  {
+            self.circle_renderpass(&view, &mut encoder, circle_vertices, circle_indices);
+        }
+
+        self.queue.submit(iter::once(encoder.finish()));  
+        output.present(); 
+
+        Ok(())
+    }
+
+
+    fn sprite_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder,  textures: &Vec<Arc<Texture>>,  vertices: &Vec<SpriteVertex>, indices: &Vec<u16>)
+    {
         let mut texture_view_vec: Vec<&TextureView> = Vec::with_capacity(textures.len());
         let mut texture_sampler_vec: Vec<&Sampler> = Vec::with_capacity(textures.len());
 
@@ -364,37 +386,13 @@ impl GraphicsInterface
         
         let sprite_vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&sprite_vertices),
+            contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let sprite_index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&sprite_indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        let rectangle_vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&rectangle_vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let rectangle_index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&rectangle_indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        let circle_vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&circle_vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let circle_index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&circle_indices),
+            contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -416,23 +414,82 @@ impl GraphicsInterface
             render_pass.set_bind_group(0, &texture_bind_group, &[]);
             render_pass.set_vertex_buffer(0, sprite_vertex_buffer.slice(..));
             render_pass.set_index_buffer(sprite_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..sprite_indices.len() as u32, 0, 0..1);
+            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+        } 
+    }
+
+    fn rectangle_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder, vertices: &Vec<RectangleVertex>, indices: &Vec<u16>)
+    {
+
+        let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(&indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
 
             render_pass.set_pipeline(&self.rectangle_render_pipeline);
-            render_pass.set_vertex_buffer(0, rectangle_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(rectangle_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..rectangle_indices.len() as u32, 0, 0..1);
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+        } 
+    }
+
+    fn circle_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder, vertices: &Vec<CircleVertex>, indices: &Vec<u16>)
+    {
+
+        let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(&indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
 
             render_pass.set_pipeline(&self.circle_render_pipeline);
-            render_pass.set_vertex_buffer(0, circle_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(circle_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..circle_indices.len() as u32, 0, 0..1);
-        }
-
-        self.queue.submit(iter::once(encoder.finish()));  
-        output.present(); 
-
-        Ok(())
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
+        } 
     }
 
 }
