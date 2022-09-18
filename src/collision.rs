@@ -22,23 +22,9 @@ pub fn rectangle_intersects_rectangle(rectangle_a: &Rectangle, rectangle_b: &Rec
     if distance_x.abs() >= min_distance_x || distance_y.abs() >= min_distance_y {
         return None;
     }
-
-    let mut depth_x = 0.0;
-    let mut depth_y = 0.0;
-
-    if distance_x > 0.0 {
-        depth_x = min_distance_x - distance_x;
-    }
-    else {
-        depth_x = -min_distance_x - distance_x;
-    }
-
-    if distance_y > 0.0 {
-        depth_y = min_distance_y - distance_y;
-    }
-    else {
-        depth_y = -min_distance_y - distance_y;
-    }
+    
+    let depth_x = if distance_x > 0.0 { min_distance_x - distance_x } else { -min_distance_x - distance_x };
+    let depth_y = if distance_y > 0.0 {  min_distance_y - distance_y } else { -min_distance_y - distance_y };
 
     Some(Vector2::new(depth_x, depth_y))
 }
