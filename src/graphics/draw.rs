@@ -1,7 +1,8 @@
 use image::RgbaImage;
 use std::{sync::Arc, collections::HashMap, f32::consts::PI};
-use crate::{graphics::colour::Colour, rectangle::Rectangle};
-use cgmath::{Rad, Vector2, Vector3, Vector4, Matrix4, SquareMatrix};
+use crate::shapes::circle::Circle;
+use crate::{graphics::colour::Colour, shapes::rectangle::Rectangle};
+use crate::{math::Rad, math::Vector2, math::Vector3, math::Vector4, math::Matrix4, math::SquareMatrix};
 use crate::{platform::graphics_interface::{SpriteVertex, ShapeVertex, GraphicsInterface}, graphics::texture::Texture};
 
 pub struct Draw
@@ -150,7 +151,7 @@ impl Draw
 
     }
 
-    pub fn rectangle(&mut self, position: Vector2<f32>, size: Vector2<u32>, colour: Colour)
+    pub fn rectangle(&mut self, rectangle: &Rectangle, colour: Colour)
     {
         if !self.batch_began {
             panic!("You can't call begin twice in a row");
@@ -158,10 +159,10 @@ impl Draw
 
         let color = colour.converted_to_color();
 
-        let origin_x = size.x as f32 / 2.0;
-        let origin_y = size.y as f32 / 2.0;
+        let origin_x = rectangle.width as f32 / 2.0;
+        let origin_y = rectangle.height as f32 / 2.0;
 
-        let model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
+        let model_matrix = Matrix4::from_translation(Vector3 { x: rectangle.centre.x, y: rectangle.centre.y,  z: 0.0 });
 
         let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
 
@@ -194,21 +195,21 @@ impl Draw
         self.rectangle_draw_count += 1;
     }
 
-    pub fn circle(&mut self, position: Vector2<f32>, radius: f32, colour: Colour)
+    pub fn circle(&mut self, circle: &Circle, colour: Colour)
     {
         if !self.batch_began {
             panic!("You can't call begin twice in a row");
         }
         let color = colour.converted_to_color();
 
-        let model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
+        let model_matrix = Matrix4::from_translation(Vector3 { x: circle.centre.x, y: circle.centre.y,  z: 0.0 });
         let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
 
         let mut vertex_index:f32 = 0.0;
 
         while vertex_index < 33.0
         {
-            let vertex_position = final_matrix * Vector4 { x: ((vertex_index * (PI / 16.0))).cos() * radius, y: ((vertex_index * (PI / 16.0))).sin() * radius, z: 0.0, w: 1.0 };
+            let vertex_position = final_matrix * Vector4 { x: ((vertex_index * (PI / 16.0))).cos() * circle.radius, y: ((vertex_index * (PI / 16.0))).sin() * circle.radius, z: 0.0, w: 1.0 };
             let vertex = ShapeVertex { position: [ vertex_position.x, vertex_position.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] };
 
             self.circle_vertices.push(vertex);
