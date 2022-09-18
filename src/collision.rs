@@ -1,8 +1,8 @@
+use crate::{math::Vector2, math::InnerSpace};
+use crate::shapes::{rectangle::Rectangle, circle::Circle};
 
-use crate::{math::Vector2, shapes::rectangle::Rectangle};
 
-
-pub fn rectangle_rectangle_intersects(rectangle_a: &Rectangle, rectangle_b: &Rectangle) -> Option<Vector2<f32>>
+pub fn rectangle_intersects_rectangle(rectangle_a: &Rectangle, rectangle_b: &Rectangle) -> Option<Vector2<f32>>
 { 
     let half_width_a = rectangle_a.width / 2.0;
     let half_height_a = rectangle_a.height / 2.0;
@@ -41,4 +41,23 @@ pub fn rectangle_rectangle_intersects(rectangle_a: &Rectangle, rectangle_b: &Rec
     }
 
     Some(Vector2::new(depth_x, depth_y))
+}
+
+pub fn circle_intersects_circle(circle_a: &Circle, circle_b: &Circle) -> Option<Vector2<f32>>
+{
+    let radius_sum = circle_a.radius + circle_b.radius;
+    let distance_vec = circle_a.centre - circle_b.centre;
+
+    let distance = distance_vec.magnitude();
+
+    if distance > radius_sum {
+        return None;
+    }
+
+    let depth = radius_sum - distance;
+    let direction = (circle_a.centre - circle_b.centre).normalize();
+
+    let depth_vector = direction * depth;
+
+    Some(depth_vector)
 }
