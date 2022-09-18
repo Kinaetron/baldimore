@@ -1,4 +1,3 @@
-
 use crate::math::Vector2;
 
 pub struct Rectangle
