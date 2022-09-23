@@ -6,5 +6,6 @@ pub mod shapes;
 pub mod window;
 pub mod platform;
 pub mod graphics;
+pub mod collision;
 pub mod animation;
 pub use crate::game::Game;

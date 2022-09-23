@@ -100,10 +100,10 @@ impl Draw
         let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
         let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
 
-        let left_tex_coord = draw_area.left / (texture.width as f32);
-        let right_tex_coord = draw_area.right / (texture.width as f32);
-        let top_tex_coord = 1.0 - draw_area.top / (texture.height as f32);
-        let bottom_tex_coord = 1.0 - draw_area.bottom / (texture.height as f32);
+        let left_tex_coord = draw_area.left() / (texture.width as f32);
+        let right_tex_coord = draw_area.right() / (texture.width as f32);
+        let top_tex_coord = 1.0 - draw_area.top() / (texture.height as f32);
+        let bottom_tex_coord = 1.0 - draw_area.bottom() / (texture.height as f32);
 
         let mut vertex_1 = SpriteVertex { index: self.texture_index, position: [ vertex_position_1.x, vertex_position_1.y], tex_coords: [left_tex_coord,    bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
         let mut vertex_2 = SpriteVertex { index: self.texture_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,       top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
@@ -162,7 +162,7 @@ impl Draw
         let origin_x = rectangle.width as f32 / 2.0;
         let origin_y = rectangle.height as f32 / 2.0;
 
-        let model_matrix = Matrix4::from_translation(Vector3 { x: rectangle.centre.x, y: rectangle.centre.y,  z: 0.0 });
+        let model_matrix = Matrix4::from_translation(Vector3 { x: rectangle.centre().x, y: rectangle.centre().y,  z: 0.0 });
 
         let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
 
@@ -202,7 +202,7 @@ impl Draw
         }
         let color = colour.converted_to_color();
 
-        let model_matrix = Matrix4::from_translation(Vector3 { x: circle.centre.x, y: circle.centre.y,  z: 0.0 });
+        let model_matrix = Matrix4::from_translation(Vector3 { x: circle.position.x, y: circle.position.y,  z: 0.0 });
         let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
 
         let mut vertex_index:f32 = 0.0;
