@@ -12,8 +12,8 @@ pub fn rectangle_intersects_rectangle(rectangle_a: &Rectangle, rectangle_b: &Rec
     let half_width_b = rectangle_b.width / 2.0;
     let half_height_b = rectangle_b.height / 2.0;
 
-    let centre_a = Vector2::new(rectangle_a.left + half_width_a, rectangle_a.top + half_height_a);
-    let centre_b = Vector2::new(rectangle_b.left + half_width_b, rectangle_b.top + half_height_b);
+    let centre_a = Vector2::new(rectangle_a.left() + half_width_a, rectangle_a.top() + half_height_a);
+    let centre_b = Vector2::new(rectangle_b.left() + half_width_b, rectangle_b.top() + half_height_b);
 
     let distance_x = centre_a.x - centre_b.x;
     let distance_y = centre_a.y - centre_b.y;
@@ -34,7 +34,7 @@ pub fn rectangle_intersects_rectangle(rectangle_a: &Rectangle, rectangle_b: &Rec
 pub fn circle_intersects_circle(circle_a: &Circle, circle_b: &Circle) -> Option<Vector2<f32>>
 {
     let radius_sum = circle_a.radius + circle_b.radius;
-    let distance_vec = circle_a.centre - circle_b.centre;
+    let distance_vec = circle_a.position - circle_b.position;
 
     let distance = distance_vec.magnitude();
 
@@ -43,7 +43,7 @@ pub fn circle_intersects_circle(circle_a: &Circle, circle_b: &Circle) -> Option<
     }
 
     let depth = radius_sum - distance;
-    let direction = (circle_a.centre - circle_b.centre).normalize();
+    let direction = (circle_a.position - circle_b.position).normalize();
 
     let depth_vector = direction * depth;
 
@@ -54,10 +54,10 @@ pub fn circle_intersects_rectangle(circle: &Circle, rectangle: &Rectangle) -> Op
 {
     let mut vertices: Vec<Vector2<f32>> = Vec::new();
 
-    vertices.push(Vector2::new(rectangle.left, rectangle.top));
-    vertices.push(Vector2::new(rectangle.right, rectangle.top));
-    vertices.push(Vector2::new(rectangle.right, rectangle.bottom));
-    vertices.push(Vector2::new(rectangle.left, rectangle.bottom));
+    vertices.push(Vector2::new(rectangle.left(), rectangle.top()));
+    vertices.push(Vector2::new(rectangle.right(), rectangle.top()));
+    vertices.push(Vector2::new(rectangle.right(), rectangle.bottom()));
+    vertices.push(Vector2::new(rectangle.left(), rectangle.bottom()));
 
     let mut is_outside = false;
     let mut min_current_vertex: Vector2<f32> = Vector2::zero();
@@ -73,7 +73,7 @@ pub fn circle_intersects_rectangle(circle: &Circle, rectangle: &Rectangle) -> Op
         let edge = vertices[next_vertex] - vertices[current_vertex];
         let normal = normal(&edge);
 
-        let vertex_to_circle_centre = circle.centre - vertices[current_vertex];
+        let vertex_to_circle_centre = circle.position - vertices[current_vertex];
         let projection = vertex_to_circle_centre.dot(normal);
 
         if projection > 0.0 && projection > max_projection
@@ -94,7 +94,7 @@ pub fn circle_intersects_rectangle(circle: &Circle, rectangle: &Rectangle) -> Op
 
     if is_outside
     {
-        let mut v1 = circle.centre - min_current_vertex;
+        let mut v1 = circle.position - min_current_vertex;
         let mut v2  = min_next_vertex - min_next_vertex;
 
         if v1.dot(v2) < 0.0
@@ -108,7 +108,7 @@ pub fn circle_intersects_rectangle(circle: &Circle, rectangle: &Rectangle) -> Op
         }
         else
         {
-            v1 = circle.centre - min_next_vertex;
+            v1 = circle.position - min_next_vertex;
             v2 = min_current_vertex - min_next_vertex;
 
             if v1.dot(v2) < 0.0

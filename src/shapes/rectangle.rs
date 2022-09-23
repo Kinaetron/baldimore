@@ -4,27 +4,33 @@ pub struct Rectangle
 {
     pub width: f32,
     pub height: f32,
-
-    pub left: f32,
-    pub right: f32,
-    pub top: f32,
-    pub bottom: f32,
-
+    
     pub position: Vector2<f32>,
-    pub centre: Vector2<f32>
 }
 
 impl Rectangle
 {
-    pub fn new(position: Vector2<f32>, width: f32, height: f32) -> Self 
-    {
-        let left = position.x;
-        let right = position.x + width;
-        let top = position.y;
-        let bottom = position.y + height;
+    pub fn left(&self) -> f32 {
+        self.position.x 
+    }
 
-        let centre = Vector2::new(position.x + (width / 2.0), position.y + (height / 2.0));
+    pub fn right(&self)  -> f32 {
+        self.position.x + self.width
+    }
 
-        Self { position, width, height, left, right, top, bottom, centre }
+    pub fn top(&self) -> f32 {
+        self.position.y
+    }
+
+    pub fn bottom(&self) -> f32 {
+        self.position.y + self.height
+    }
+
+    pub fn centre(&self) -> Vector2<f32> {
+        Vector2::new(self.position.x + (self.width / 2.0), self.position.y + (self.height / 2.0))
+    }
+
+    pub fn new(position: Vector2<f32>, width: f32, height: f32) -> Self  {
+        Self { position, width, height }
     }
 }
