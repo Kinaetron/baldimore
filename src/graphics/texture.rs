@@ -18,7 +18,6 @@ pub struct Texture
 
 impl Texture 
 {
-
     pub fn new_from_buffer(graphics_interface: &GraphicsInterface, buffer: ImageBuffer<Rgba<u8>, Vec<u8>>, dimensions: Vector2<u32>) -> Self
     {
         let size = wgpu::Extent3d {
@@ -28,7 +27,7 @@ impl Texture
         };
 
         let texture = graphics_interface.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("rectangle"),
+            label: Some("image from buffer"),
             size,
             mip_level_count: 1,
             sample_count: 1,
@@ -86,7 +85,7 @@ impl Texture
         };
 
         let texture = graphics_interface.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("rectangle"),
+            label: Some("image from file path"),
             size,
             mip_level_count: 1,
             sample_count: 1,
@@ -125,5 +124,52 @@ impl Texture
         Self { id: rand::random::<u64>(), width: dimensions.0, height: dimensions.1 , texture, view, sampler }
     }
 
+    pub fn new_glpyh(graphics_interface: &GraphicsInterface, bitmap: &Vec<u8>, dimensions: &Vector2<u32>) -> Self
+    {
+        let size = wgpu::Extent3d {
+            width: dimensions.x,
+            height: dimensions.y,
+            depth_or_array_layers: 1,
+        };
 
+        let texture = graphics_interface.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("glyth from memory"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::R8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        });
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = graphics_interface.device.create_sampler(&wgpu::SamplerDescriptor {
+            min_filter: wgpu::FilterMode::Nearest,
+            mag_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            lod_min_clamp: 0f32,
+            lod_max_clamp: 0f32,
+            ..Default::default()
+        });
+
+        graphics_interface.queue.write_texture(
+            wgpu::ImageCopyTexture 
+            {
+                aspect: wgpu::TextureAspect::All,
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            &bitmap,
+            wgpu::ImageDataLayout 
+            {
+                offset: 0,
+                bytes_per_row: NonZeroU32::new(dimensions.x),
+                rows_per_image: NonZeroU32::new(dimensions.y),
+            },
+            size,
+        );
+
+        Self { id: rand::random::<u64>(), width: dimensions.x, height: dimensions.y, texture, view, sampler }
+    }
 }

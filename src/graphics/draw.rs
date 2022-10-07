@@ -1,27 +1,34 @@
-use image::RgbaImage;
-use std::{sync::Arc, collections::HashMap, f32::consts::PI};
+use image::{RgbaImage};
 use crate::shapes::circle::Circle;
+use std::{sync::Arc, collections::HashMap, f32::consts::PI};
 use crate::{graphics::colour::Colour, shapes::rectangle::Rectangle};
 use crate::{math::Rad, math::Vector2, math::Vector3, math::Vector4, math::Matrix4, math::SquareMatrix};
-use crate::{platform::graphics_interface::{SpriteVertex, ShapeVertex, GraphicsInterface}, graphics::texture::Texture};
+use crate::{platform::graphics_interface::{TextureVertex, ShapeVertex, GraphicsInterface}, graphics::texture::Texture};
 
 pub struct Draw
 {
-    sprite_draw_count: u16,
+    glyth_draw_count: u16,
+    texture_draw_count: u16,
     rectangle_draw_count: u16,
     circle_draw_count: u16,
     batch_began: bool,
     texture_index: u32,
-    sprite_indices: Vec<u16>,
-    sprite_vertices: Vec<SpriteVertex>,
+    texture_indices: Vec<u16>,
+    texture_vertices: Vec<TextureVertex>,
+    glyth_index: u32,
+    glyth_indices: Vec<u16>,
+    glyth_vertices: Vec<TextureVertex>,
     rectangle_indices: Vec<u16>,
     rectangle_vertices: Vec<ShapeVertex>,
     circle_indices: Vec<u16>,
     circle_vertices: Vec<ShapeVertex>,
+    dummy_glyth: Arc<Texture>,
     dummy_texture: Arc<Texture>,
     camera_matrix: Matrix4<f32>,
     texture_vec: Vec<Arc<Texture>>,
     texture_hashmap: HashMap<u64, u32>,
+    glyth_vec: Vec<Arc<Texture>>,
+    glyph_hashmap: HashMap<u64, u32>,
     pub graphics_interface: GraphicsInterface,
 }
 
@@ -29,33 +36,50 @@ impl Draw
 {
     pub fn new(graphics_interface: GraphicsInterface) -> Self 
     {
-
-        let sprite_indices: Vec<u16> = Vec::new();
-        let sprite_vertices: Vec<SpriteVertex> = Vec::new();
+        let texture_indices: Vec<u16> = Vec::new();
+        let texture_vertices: Vec<TextureVertex> = Vec::new();
+        let glyth_indices: Vec<u16> = Vec::new();
+        let glyth_vertices: Vec<TextureVertex> = Vec::new();
         let rectangle_indices: Vec<u16> = Vec::new();
         let rectangle_vertices: Vec<ShapeVertex> = Vec::new();
         let circle_indices: Vec<u16> = Vec::new();
         let circle_vertices: Vec<ShapeVertex> = Vec::new();
         let camera_matrix = Matrix4::identity();
         let texture_hashmap: HashMap<u64, u32> = HashMap::new();
+        let glyph_hashmap: HashMap<u64, u32> = HashMap::new();
         let texture_vec: Vec<Arc<Texture>> = Vec::with_capacity(16);
+        let glyth_vec: Vec<Arc<Texture>> = Vec::with_capacity(16);
 
         let image_buffer = RgbaImage::new(1, 1);
         let dummy_texture =Arc::new(Texture::new_from_buffer(&graphics_interface, image_buffer, Vector2 { x: 1, y: 1 }));
 
-        Self 
-        { 
-            sprite_draw_count: 0,
+        let mut bitmap: Vec<u8> = Vec::new();
+        bitmap.push(1);
+
+        let diemensions = Vector2::new(1, 1);
+
+        let dummy_glyth = Arc::new(Texture::new_glpyh(&graphics_interface, &bitmap, &diemensions));
+
+        Self
+        {
+            glyth_vec,
+            dummy_glyth,
+            glyth_index: 0,
+            glyth_indices,
+            glyth_vertices,
+            glyth_draw_count: 0,
+            glyph_hashmap,
+            texture_draw_count: 0,
             rectangle_draw_count: 0, 
             circle_draw_count: 0,
-            sprite_indices, 
+            texture_indices, 
             batch_began: false,
             dummy_texture, 
             texture_index: 0, 
             texture_vec, 
             texture_hashmap, 
             graphics_interface, 
-            sprite_vertices, 
+            texture_vertices, 
             camera_matrix, 
             rectangle_indices,
             rectangle_vertices,
@@ -79,11 +103,11 @@ impl Draw
         self.camera_matrix = camera_matrix;
     }
 
-    pub fn sprite(&mut self, texture: Arc<Texture>, position: Vector2<f32>, draw_area: &Rectangle, size: Vector2<f32>, rotation: f32,  colour: Colour)
+    pub fn sprite(&mut self, texture: Arc<Texture>, position: &Vector2<f32>, draw_area: &Rectangle, size: Vector2<f32>, rotation: f32,  colour: Colour)
     {
         if !self.batch_began {
-            panic!("You can't call begin twice in a row");
-        }
+            panic!("You can't call sprite without calling begin first");
+        } 
 
         let color = colour.converted_to_color();
 
@@ -105,10 +129,10 @@ impl Draw
         let top_tex_coord = 1.0 - draw_area.top() / (texture.height as f32);
         let bottom_tex_coord = 1.0 - draw_area.bottom() / (texture.height as f32);
 
-        let mut vertex_1 = SpriteVertex { index: self.texture_index, position: [ vertex_position_1.x, vertex_position_1.y], tex_coords: [left_tex_coord,    bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
-        let mut vertex_2 = SpriteVertex { index: self.texture_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,       top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
-        let mut vertex_3 = SpriteVertex { index: self.texture_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,      top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
-        let mut vertex_4 = SpriteVertex { index: self.texture_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord,   bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right        
+        let mut vertex_1 = TextureVertex { index: self.texture_index, position: [ vertex_position_1.x, vertex_position_1.y], tex_coords: [left_tex_coord,    bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
+        let mut vertex_2 = TextureVertex { index: self.texture_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [left_tex_coord,       top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
+        let mut vertex_3 = TextureVertex { index: self.texture_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [right_tex_coord,      top_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
+        let mut vertex_4 = TextureVertex { index: self.texture_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [right_tex_coord,   bottom_tex_coord], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right        
 
         match self.texture_hashmap.get(&texture.id)
         {
@@ -133,31 +157,104 @@ impl Draw
             }
         }
 
-        self.sprite_vertices.push(vertex_1);
-        self.sprite_vertices.push(vertex_2);
-        self.sprite_vertices.push(vertex_3);
-        self.sprite_vertices.push(vertex_4);
+        self.texture_vertices.push(vertex_1);
+        self.texture_vertices.push(vertex_2);
+        self.texture_vertices.push(vertex_3);
+        self.texture_vertices.push(vertex_4);
 
-        let index_offset = 4 * self.sprite_draw_count;
+        let index_offset = 4 * self.texture_draw_count;
 
-        self.sprite_indices.push(0 + index_offset);
-        self.sprite_indices.push(1 + index_offset);
-        self.sprite_indices.push(3 + index_offset);
-        self.sprite_indices.push(1 + index_offset);
-        self.sprite_indices.push(2 + index_offset);
-        self.sprite_indices.push(3 + index_offset);
+        self.texture_indices.push(0 + index_offset);
+        self.texture_indices.push(1 + index_offset);
+        self.texture_indices.push(3 + index_offset);
+        self.texture_indices.push(1 + index_offset);
+        self.texture_indices.push(2 + index_offset);
+        self.texture_indices.push(3 + index_offset);
 
-        self.sprite_draw_count += 1;
+        self.texture_draw_count += 1;
 
+    }
+
+    pub fn text(&mut self, text: &str, position: &Vector2<f32>, text_size: f32, font: &Vec<u8>,  colour: Colour)
+    {
+        if !self.batch_began {
+            panic!("You can't call text without calling begin first");
+        }
+
+        let colour = colour.converted_to_color();
+        let font = fontdue::Font::from_bytes(font.as_slice(), fontdue::FontSettings::default()).unwrap();
+
+        for character in text.chars()
+        {
+            let (metrics, bitmap) = font.rasterize(character, text_size);
+            let diemensions = Vector2::new(metrics.width as u32, metrics.height as u32);
+
+            let texture = Texture::new_glpyh(&self.graphics_interface, &bitmap, &diemensions);
+
+            let origin_x = diemensions.x as f32 / 2.0;
+            let origin_y = diemensions.y as f32 / 2.0;
+
+            let model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
+            let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
+
+            let vertex_position_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+            let vertex_position_2 =  final_matrix * Vector4 { x: -origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+            let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
+            let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
+
+            let mut vertex_1 = TextureVertex { index: self.texture_index, position: [ vertex_position_1.x, vertex_position_1.y], tex_coords: [0.0, 0.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // bottom left
+            let mut vertex_2 = TextureVertex { index: self.texture_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [0.0, 1.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top left
+            let mut vertex_3 = TextureVertex { index: self.texture_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [1.0, 1.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top right
+            let mut vertex_4 = TextureVertex { index: self.texture_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [1.0, 0.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // bottom right   
+        
+            match self.glyph_hashmap.get(&texture.id)
+            {
+                Some(index) => 
+                {
+                   let index_value = *index;
+                    
+                    if index_value > 15 {
+                        self.end();
+                    }
+    
+                   vertex_1.index = index_value;
+                   vertex_2.index = index_value;
+                   vertex_3.index = index_value;
+                   vertex_4.index = index_value;
+                }
+                None =>
+                { 
+                    self.glyph_hashmap.insert(texture.id, self.glyth_index);
+                    self.glyth_vec.push(Arc::new(texture));
+                    self.glyth_index += 1;
+                }
+            }
+    
+            self.glyth_vertices.push(vertex_1);
+            self.glyth_vertices.push(vertex_2);
+            self.glyth_vertices.push(vertex_3);
+            self.glyth_vertices.push(vertex_4);
+    
+            let index_offset = 4 * self.glyth_draw_count;
+    
+            self.glyth_indices.push(0 + index_offset);
+            self.glyth_indices.push(1 + index_offset);
+            self.glyth_indices.push(3 + index_offset);
+            self.glyth_indices.push(1 + index_offset);
+            self.glyth_indices.push(2 + index_offset);
+            self.glyth_indices.push(3 + index_offset);
+    
+            self.glyth_draw_count += 1;
+        }
     }
 
     pub fn rectangle(&mut self, rectangle: &Rectangle, colour: Colour)
     {
         if !self.batch_began {
-            panic!("You can't call begin twice in a row");
+            panic!("You can't call rectangle without calling begin first");
         }
 
-        let color = colour.converted_to_color();
+        let colour = colour.converted_to_color();
 
         let origin_x = rectangle.width as f32 / 2.0;
         let origin_y = rectangle.height as f32 / 2.0;
@@ -171,10 +268,10 @@ impl Draw
         let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
         let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
 
-        let vertex_1 = ShapeVertex { position: [ vertex_position_1.x, vertex_position_1.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom left
-        let vertex_2 = ShapeVertex { position: [ vertex_position_2.x, vertex_position_2.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top left
-        let vertex_3 = ShapeVertex { position: [ vertex_position_3.x, vertex_position_3.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // top right
-        let vertex_4 = ShapeVertex { position: [ vertex_position_4.x, vertex_position_4.y], color: [color.r as f32, color.g as f32, color.b as f32, color.a as f32] }; // bottom right
+        let vertex_1 = ShapeVertex { position: [ vertex_position_1.x, vertex_position_1.y], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // bottom left
+        let vertex_2 = ShapeVertex { position: [ vertex_position_2.x, vertex_position_2.y], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top left
+        let vertex_3 = ShapeVertex { position: [ vertex_position_3.x, vertex_position_3.y], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top right
+        let vertex_4 = ShapeVertex { position: [ vertex_position_4.x, vertex_position_4.y], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // bottom right
         
         self.rectangle_vertices.push(vertex_1);
         self.rectangle_vertices.push(vertex_2);
@@ -198,8 +295,9 @@ impl Draw
     pub fn circle(&mut self, circle: &Circle, colour: Colour)
     {
         if !self.batch_began {
-            panic!("You can't call begin twice in a row");
+            panic!("You can't call circle without calling begin first");
         }
+
         let color = colour.converted_to_color();
 
         let model_matrix = Matrix4::from_translation(Vector3 { x: circle.position.x, y: circle.position.y,  z: 0.0 });
@@ -236,19 +334,29 @@ impl Draw
     pub fn end(&mut self)
     {
         if !self.batch_began {
-            panic!("You can't call end if without calling begin first");
+            panic!("You can't call end without calling begin first");
         }
 
         let mut x = 0;
-        let count = 16 - self.texture_index;
+        let texture_count = 16 - self.texture_index;
 
-        while x < count
+        while x < texture_count
         {
             self.texture_vec.push(self.dummy_texture.clone());
             x += 1;
         }
 
-        self.graphics_interface.batch_render(&self.texture_vec, &self.sprite_vertices, &self.sprite_indices, 
+        let mut y = 0;
+        let glyth_count = 16 - self.glyth_index;
+
+        while y < glyth_count
+        {
+            self.glyth_vec.push(self.dummy_glyth.clone());
+            y += 1;
+        }
+
+        self.graphics_interface.batch_render(&self.texture_vec, &self.texture_vertices, &self.texture_indices,
+                                                      &self.glyth_vec, &self.glyth_vertices, &self.glyth_indices, 
                                                        &self.rectangle_vertices, &self.rectangle_indices,
                                                        &self.circle_vertices, &self.circle_indices);
         self.flush();
@@ -256,15 +364,21 @@ impl Draw
 
     fn flush(& mut self)
     {
+        self.glyth_draw_count = 0;
         self.circle_draw_count = 0;
-        self.sprite_draw_count = 0;
+        self.texture_draw_count = 0;
         self.rectangle_draw_count = 0;
+        self.glyth_vertices.clear();
+        self.glyth_indices.clear();
+        self.glyth_index = 0;
+        self.glyth_vec.clear();
+        self.glyph_hashmap.clear();
         self.circle_vertices.clear();
         self.circle_indices.clear();
         self.rectangle_vertices.clear();
         self.rectangle_indices.clear();
-        self.sprite_vertices.clear();
-        self.sprite_indices.clear();
+        self.texture_vertices.clear();
+        self.texture_indices.clear();
         self.texture_index = 0;
         self.texture_vec.clear();
         self.batch_began = false;

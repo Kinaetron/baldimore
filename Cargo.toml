@@ -12,6 +12,7 @@ kira = "0.6.0"
 wgpu = "0.13.0"
 pollster = "0.2"
 cgmath = "0.18.0"
+fontdue = "0.7.2"
 bytemuck = { version = "1.9.1", features = [ "derive" ] }
 [dependencies.sdl2]
 features = ["raw-window-handle"]

@@ -47,6 +47,6 @@ impl Animation
         let draw_position = Vector2::new(self.frame as f32 * self.cell_size.x, self.column as f32);
 
         let draw_area = Rectangle::new(draw_position, self.cell_size.x, self.cell_size.y);
-        draw.sprite(Arc::clone(&self.texture), position, &draw_area, self.cell_size, rotation, colour);
+        draw.sprite(Arc::clone(&self.texture), &position, &draw_area, self.cell_size, rotation, colour);
     }
 }
