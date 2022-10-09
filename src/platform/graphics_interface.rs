@@ -377,7 +377,7 @@ impl GraphicsInterface
     }
 
     pub fn batch_render(& mut self, sprite_textures: &Vec<Arc<Texture>>, sprite_vertices: &Vec<TextureVertex>, sprite_indices: &Vec<u16>, 
-                        glyth_textures: &Vec<Arc<Texture>>, glyth_vertices: &Vec<TextureVertex>, glyth_indices: &Vec<u16>, 
+                        glyth_textures: &Vec<Arc<Texture>>, glyth_vertices: &Vec<GlythVertex>, glyth_indices: &Vec<u16>, 
                         rectangle_vertices: &Vec<ShapeVertex>, rectangle_indices: &Vec<u16>,
                         circle_vertices: &Vec<ShapeVertex>, circle_indices: &Vec<u16>)
     { 
@@ -394,7 +394,7 @@ impl GraphicsInterface
     }
 
     fn internal_batch_render(& mut self, sprite_textures: &Vec<Arc<Texture>>,  sprite_vertices: &Vec<TextureVertex>, sprite_indices: &Vec<u16>,
-                               glyth_textures: &Vec<Arc<Texture>>,  glyth_vertices: &Vec<TextureVertex>, glyth_indices: &Vec<u16>,  
+                               glyth_textures: &Vec<Arc<Texture>>,  glyth_vertices: &Vec<GlythVertex>, glyth_indices: &Vec<u16>,  
                               rectangle_vertices: &Vec<ShapeVertex>, rectangle_indices: &Vec<u16>,
                               circle_vertices: &Vec<ShapeVertex>, circle_indices: &Vec<u16>) -> Result<(), wgpu::SurfaceError>
     {
@@ -503,7 +503,7 @@ impl GraphicsInterface
         } 
     }
 
-    fn glyth_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder,  textures: &Vec<Arc<Texture>>,  vertices: &Vec<TextureVertex>, indices: &Vec<u16>)
+    fn glyth_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder,  textures: &Vec<Arc<Texture>>,  vertices: &Vec<GlythVertex>, indices: &Vec<u16>)
     {
         let mut texture_view_vec: Vec<&TextureView> = Vec::with_capacity(textures.len());
         let mut texture_sampler_vec: Vec<&Sampler> = Vec::with_capacity(textures.len());

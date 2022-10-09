@@ -1,9 +1,11 @@
-use image::{RgbaImage};
+use fontdue::Font;
+use image::RgbaImage;
 use crate::shapes::circle::Circle;
 use std::{sync::Arc, collections::HashMap, f32::consts::PI};
 use crate::{graphics::colour::Colour, shapes::rectangle::Rectangle};
+use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};
 use crate::{math::Rad, math::Vector2, math::Vector3, math::Vector4, math::Matrix4, math::SquareMatrix};
-use crate::{platform::graphics_interface::{TextureVertex, ShapeVertex, GraphicsInterface}, graphics::texture::Texture};
+use crate::{platform::graphics_interface::{TextureVertex, GlythVertex, ShapeVertex, GraphicsInterface}, graphics::texture::Texture};
 
 pub struct Draw
 {
@@ -17,7 +19,7 @@ pub struct Draw
     texture_vertices: Vec<TextureVertex>,
     glyth_index: u32,
     glyth_indices: Vec<u16>,
-    glyth_vertices: Vec<TextureVertex>,
+    glyth_vertices: Vec<GlythVertex>,
     rectangle_indices: Vec<u16>,
     rectangle_vertices: Vec<ShapeVertex>,
     circle_indices: Vec<u16>,
@@ -39,7 +41,7 @@ impl Draw
         let texture_indices: Vec<u16> = Vec::new();
         let texture_vertices: Vec<TextureVertex> = Vec::new();
         let glyth_indices: Vec<u16> = Vec::new();
-        let glyth_vertices: Vec<TextureVertex> = Vec::new();
+        let glyth_vertices: Vec<GlythVertex> = Vec::new();
         let rectangle_indices: Vec<u16> = Vec::new();
         let rectangle_vertices: Vec<ShapeVertex> = Vec::new();
         let circle_indices: Vec<u16> = Vec::new();
@@ -182,11 +184,16 @@ impl Draw
         }
 
         let colour = colour.converted_to_color();
-        let font = fontdue::Font::from_bytes(font.as_slice(), fontdue::FontSettings::default()).unwrap();
 
-        for character in text.chars()
+        let fonts = &[Font::from_bytes(font.as_slice(), fontdue::FontSettings::default()).unwrap()];
+        let mut layout: Layout = Layout::new(CoordinateSystem::PositiveYDown);
+        layout.append(fonts, &TextStyle::new(text, text_size, 0));
+
+        for i in 0..text.len()
         {
-            let (metrics, bitmap) = font.rasterize(character, text_size);
+
+            let glyth_details = layout.glyphs()[i];
+            let (metrics, bitmap) = fonts[0].rasterize( text.chars().nth(i).unwrap(), text_size);
             let diemensions = Vector2::new(metrics.width as u32, metrics.height as u32);
 
             let texture = Texture::new_glpyh(&self.graphics_interface, &bitmap, &diemensions);
@@ -194,7 +201,10 @@ impl Draw
             let origin_x = diemensions.x as f32 / 2.0;
             let origin_y = diemensions.y as f32 / 2.0;
 
-            let model_matrix = Matrix4::from_translation(Vector3 { x: position.x, y: position.y,  z: 0.0 });
+            let glyth_displacement_x = glyth_details.x + (glyth_details.width / 2) as f32;
+            let glyth_displacement_y = glyth_details.y as i32 / 2;
+
+            let model_matrix = Matrix4::from_translation(Vector3 { x: position.x + glyth_displacement_x, y: position.y + glyth_displacement_y as f32,  z: 0.0 });
             let final_matrix = self.graphics_interface.world_matrix * self.camera_matrix  * model_matrix;
 
             let vertex_position_1 =  final_matrix * Vector4 { x: -origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
@@ -202,10 +212,10 @@ impl Draw
             let vertex_position_3 =  final_matrix * Vector4 { x:  origin_x, y:   origin_y,  z: 0.0, w: 1.0 };
             let vertex_position_4 =  final_matrix * Vector4 { x:  origin_x, y:  -origin_y,  z: 0.0, w: 1.0 };
 
-            let mut vertex_1 = TextureVertex { index: self.texture_index, position: [ vertex_position_1.x, vertex_position_1.y], tex_coords: [0.0, 0.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // bottom left
-            let mut vertex_2 = TextureVertex { index: self.texture_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [0.0, 1.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top left
-            let mut vertex_3 = TextureVertex { index: self.texture_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [1.0, 1.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top right
-            let mut vertex_4 = TextureVertex { index: self.texture_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [1.0, 0.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // bottom right   
+            let mut vertex_1 = GlythVertex { index: self.glyth_index, position: [ vertex_position_1.x, vertex_position_1.y], tex_coords: [0.0, 0.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // bottom left
+            let mut vertex_2 = GlythVertex { index: self.glyth_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [0.0, 1.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top left
+            let mut vertex_3 = GlythVertex { index: self.glyth_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [1.0, 1.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top right
+            let mut vertex_4 = GlythVertex { index: self.glyth_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [1.0, 0.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // bottom right   
         
             match self.glyph_hashmap.get(&texture.id)
             {
@@ -216,14 +226,14 @@ impl Draw
                     if index_value > 15 {
                         self.end();
                     }
-    
+
                    vertex_1.index = index_value;
                    vertex_2.index = index_value;
                    vertex_3.index = index_value;
                    vertex_4.index = index_value;
                 }
                 None =>
-                { 
+                {
                     self.glyph_hashmap.insert(texture.id, self.glyth_index);
                     self.glyth_vec.push(Arc::new(texture));
                     self.glyth_index += 1;

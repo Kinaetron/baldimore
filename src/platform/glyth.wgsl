@@ -33,5 +33,5 @@ var sampler_array: binding_array<sampler>;
 
 @fragment
 fn fs_main(in: VertexOutput) ->  @location(0) vec4<f32> {
-    return in.color * textureSample(texture_array[in.index], sampler_array[in.index], in.tex_coords);
+    return in.color * textureSample(texture_array[in.index], sampler_array[in.index], in.tex_coords).x;
 }
