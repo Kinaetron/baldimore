@@ -191,9 +191,14 @@ impl Draw
 
         for i in 0..text.len()
         {
+            let character = text.chars().nth(i).unwrap();
+            
+            if character == ' ' {
+                continue;
+            }
 
             let glyth_details = layout.glyphs()[i];
-            let (metrics, bitmap) = fonts[0].rasterize( text.chars().nth(i).unwrap(), text_size);
+            let (metrics, bitmap) = fonts[0].rasterize(character, text_size);
             let diemensions = Vector2::new(metrics.width as u32, metrics.height as u32);
 
             let texture = Texture::new_glpyh(&self.graphics_interface, &bitmap, &diemensions);
@@ -216,16 +221,12 @@ impl Draw
             let mut vertex_2 = GlythVertex { index: self.glyth_index, position: [ vertex_position_2.x, vertex_position_2.y], tex_coords: [0.0, 1.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top left
             let mut vertex_3 = GlythVertex { index: self.glyth_index, position: [ vertex_position_3.x, vertex_position_3.y], tex_coords: [1.0, 1.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // top right
             let mut vertex_4 = GlythVertex { index: self.glyth_index, position: [ vertex_position_4.x, vertex_position_4.y], tex_coords: [1.0, 0.0], color: [colour.r as f32, colour.g as f32, colour.b as f32, colour.a as f32] }; // bottom right   
-        
+
             match self.glyph_hashmap.get(&texture.id)
             {
                 Some(index) => 
                 {
                    let index_value = *index;
-                    
-                    if index_value > 15 {
-                        self.end();
-                    }
 
                    vertex_1.index = index_value;
                    vertex_2.index = index_value;
