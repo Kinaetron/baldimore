@@ -1,5 +1,5 @@
 use log::warn;
-use wgpu::CommandEncoder;
+use wgpu::{CommandEncoder, RenderPass, Buffer, BindGroup, Device};
 use crate::math;
 use cgmath::Matrix4;
 use std::num::NonZeroU32;
@@ -52,6 +52,21 @@ pub struct GraphicsInterface
     rectangle_render_pipeline: wgpu::RenderPipeline,
     circle_render_pipeline: wgpu::RenderPipeline,
     clear_color: wgpu::Color,
+}
+
+pub struct SpriteRenderInformation
+{
+    pub vertex_buffer: Buffer,
+    pub index_buffer: Buffer,
+    pub bind_group: BindGroup,
+    pub vertices_to_render: usize
+}
+
+pub struct ShapeRenderInformation
+{
+    pub vertex_buffer: Buffer,
+    pub index_buffer: Buffer,
+    pub vertices_to_render: usize
 }
 
 impl GraphicsInterface
@@ -404,36 +419,30 @@ impl GraphicsInterface
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
+        
+        {
+            let sprite_information = SpriteRenderInformation::new(&self.device, &self.texture_bind_group_layout, sprite_textures, sprite_vertices, sprite_indices);
+            let rectangle_information = ShapeRenderInformation::new(&self.device, rectangle_vertices, rectangle_indices);
+            let circle_information = ShapeRenderInformation::new(&self.device, circle_vertices, circle_indices);
 
-        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(self.clear_color),
-                    store: true,
-                },
-            })],
-            depth_stencil_attachment: None,
-        });
-
-        if sprite_vertices.len() > 0 {
-            self.sprite_renderpass(&view, &mut encoder, sprite_textures, sprite_vertices, sprite_indices);
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(self.clear_color),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+    
+            self.sprite_renderpass(&mut render_pass, &sprite_information);
+            self.circle_renderpass(&mut render_pass, &circle_information);
+            self.rectangle_renderpass(&mut render_pass, &rectangle_information);
         }
-
-        if glyth_vertices.len() > 0 {
-            self.glyth_renderpass(&view, &mut encoder, glyth_textures, glyth_vertices, glyth_indices);
-        }
-
-        if rectangle_vertices.len() > 0 {
-            self.rectangle_renderpass(&view, &mut encoder, rectangle_vertices, rectangle_indices);
-        }
-
-        if circle_vertices.len() > 0  {
-            self.circle_renderpass(&view, &mut encoder, circle_vertices, circle_indices);
-        }
-
+        
         self.queue.submit(iter::once(encoder.finish()));  
         output.present(); 
 
@@ -441,7 +450,36 @@ impl GraphicsInterface
     }
 
 
-    fn sprite_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder,  textures: &Vec<Arc<Texture>>,  vertices: &Vec<TextureVertex>, indices: &Vec<u16>)
+    fn sprite_renderpass<'a>(&'a self, render_pass: &mut RenderPass<'a>, sprite_information: &'a SpriteRenderInformation)
+    {
+        render_pass.set_pipeline(&self.sprite_render_pipeline);
+        render_pass.set_bind_group(0, &sprite_information.bind_group, &[]);
+        render_pass.set_vertex_buffer(0, sprite_information.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(sprite_information.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..sprite_information.vertices_to_render as u32, 0, 0..1);
+    }
+
+
+    fn rectangle_renderpass<'a>(&'a self, render_pass: &mut RenderPass<'a>, shape_information: &'a ShapeRenderInformation)
+    {
+        render_pass.set_pipeline(&self.rectangle_render_pipeline);
+        render_pass.set_vertex_buffer(0, shape_information.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(shape_information.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..shape_information.vertices_to_render as u32, 0, 0..1);
+    }
+
+    fn circle_renderpass<'a>(&'a self, render_pass: &mut RenderPass<'a>, shape_information: &'a ShapeRenderInformation)
+    {
+        render_pass.set_pipeline(&self.circle_render_pipeline);
+        render_pass.set_vertex_buffer(0, shape_information.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(shape_information.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+        render_pass.draw_indexed(0..shape_information.vertices_to_render as u32, 0, 0..1);
+    }
+}
+
+impl SpriteRenderInformation
+{
+    pub fn new(device: &Device, texture_bind_group_layout: &wgpu::BindGroupLayout, textures: &Vec<Arc<Texture>>,  vertices: &Vec<TextureVertex>, indices: &Vec<u16>) -> Self
     {
         let mut texture_view_vec: Vec<&TextureView> = Vec::with_capacity(textures.len());
         let mut texture_sampler_vec: Vec<&Sampler> = Vec::with_capacity(textures.len());
@@ -452,7 +490,19 @@ impl GraphicsInterface
             texture_sampler_vec.push(&texture.sampler);
         }
 
-        let texture_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(&indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             entries: &[
                 wgpu::BindGroupEntry 
                 {
@@ -465,178 +515,31 @@ impl GraphicsInterface
                     resource: wgpu::BindingResource::SamplerArray(texture_sampler_vec.as_slice()),
                 }
             ],
-            layout: &self.texture_bind_group_layout,
+            layout: &texture_bind_group_layout,
             label: Some("texture bind group"),
         });
-        
-        let sprite_vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
 
-        let sprite_index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
+        Self { bind_group, vertex_buffer, index_buffer, vertices_to_render: indices.len() }
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-
-            render_pass.set_pipeline(&self.sprite_render_pipeline);
-            render_pass.set_bind_group(0, &texture_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, sprite_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(sprite_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
-        } 
     }
+}
 
-    fn glyth_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder,  textures: &Vec<Arc<Texture>>,  vertices: &Vec<GlythVertex>, indices: &Vec<u16>)
+impl ShapeRenderInformation
+{
+    pub fn new(device: &Device, vertices: &Vec<ShapeVertex>, indices: &Vec<u16>) -> Self
     {
-        let mut texture_view_vec: Vec<&TextureView> = Vec::with_capacity(textures.len());
-        let mut texture_sampler_vec: Vec<&Sampler> = Vec::with_capacity(textures.len());
-
-        for texture in textures
-        {
-            texture_view_vec.push(&texture.view);
-            texture_sampler_vec.push(&texture.sampler);
-        }
-
-        let glyth_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            entries: &[
-                wgpu::BindGroupEntry 
-                {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureViewArray(texture_view_vec.as_slice()),
-                },
-                wgpu::BindGroupEntry 
-                {
-                    binding: 1,
-                    resource: wgpu::BindingResource::SamplerArray(texture_sampler_vec.as_slice()),
-                }
-            ],
-            layout: &self.glyth_bind_group_layout,
-            label: Some("glyth bind group"),
-        });
-
-        let sprite_vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(&vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let sprite_index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
             contents: bytemuck::cast_slice(&indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-
-            render_pass.set_pipeline(&self.glyth_render_pipeline);
-            render_pass.set_bind_group(0, &glyth_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, sprite_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(sprite_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
-        } 
+        Self { vertex_buffer, index_buffer, vertices_to_render: indices.len() }
     }
-
-    fn rectangle_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder, vertices: &Vec<ShapeVertex>, indices: &Vec<u16>)
-    {
-
-        let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-
-            render_pass.set_pipeline(&self.rectangle_render_pipeline);
-            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
-        } 
-    }
-
-    fn circle_renderpass(&mut self, view: &TextureView, encoder: &mut CommandEncoder, vertices: &Vec<ShapeVertex>, indices: &Vec<u16>)
-    {
-
-        let vertex_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-
-            render_pass.set_pipeline(&self.circle_render_pipeline);
-            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..indices.len() as u32, 0, 0..1);
-        } 
-    }
-
 }
